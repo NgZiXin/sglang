@@ -6,7 +6,6 @@
 #SBATCH --mem=96G
 #SBATCH --time=01:00:00
 #SBATCH --output=wan-t2v-serve-%j.out
-#SBATCH --error=wan-t2v-serve-%j.err
 
 set -euo pipefail
 
@@ -22,6 +21,7 @@ export XDG_CACHE_HOME=$SCRATCH/sglang/cache
 export TORCHINDUCTOR_CACHE_DIR=$SCRATCH/sglang/torch-cache/inductor
 export TRITON_CACHE_DIR=$SCRATCH/sglang/torch-cache/triton
 mkdir -p "$HF_HOME" "$TMPDIR" "$XDG_CACHE_HOME" "$TORCHINDUCTOR_CACHE_DIR" "$TRITON_CACHE_DIR" "$SCRATCH/sglang/benchmark"
+RUN_PREFIX="wan_t2v_${SLURM_JOB_ID:-manual}"
 
 source "$SCRATCH/sglang/venv/bin/activate"
 
@@ -43,13 +43,17 @@ for i in $(seq 1 120); do
   sleep 5
 done
 
+echo "Starting Wan T2V server is ready, running benchmark"
+
 python3 -m sglang.multimodal_gen.benchmarks.bench_serving \
   --dataset vbench \
   --task text-to-video \
   --num-prompts 1 \
   --max-concurrency 1 \
   --port 30000 \
-  --output-file "$SCRATCH/sglang/benchmark/wan_t2v_bench.json"
+  --output-file "$SCRATCH/sglang/benchmark/${RUN_PREFIX}_bench.json"
+
+echo "Benchmark completed, shutting down server"
 
 kill "$SERVER_PID" || true
 wait "$SERVER_PID" || true
