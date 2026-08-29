@@ -22,7 +22,7 @@ export TORCHINDUCTOR_CACHE_DIR=$SCRATCH/sglang/torch-cache/inductor
 export TRITON_CACHE_DIR=$SCRATCH/sglang/torch-cache/triton
 export SGLANG_DIFFUSION_SYNC_STAGE_PROFILING=1
 
-OUTPUT_DIR="$SCRATCH/sglang/outputs"
+OUTPUT_DIR="$SCRATCH/sglang/outputs/cache-dit"
 RUN_PREFIX="wan_t2v_${SLURM_JOB_ID:-manual}"
 SUMMARY_CSV="$OUTPUT_DIR/${RUN_PREFIX}_summary.csv"
 
