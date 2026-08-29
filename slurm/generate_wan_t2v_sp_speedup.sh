@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=wan-t2v-sp-speed
 #SBATCH --partition=gpu
-#SBATCH --gpus=h100-96:2
+#SBATCH --gres=gpu:h100-96:2
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=192G
 #SBATCH --time=12:00:00
@@ -38,6 +38,7 @@ NUM_INFERENCE_STEPS=${NUM_INFERENCE_STEPS:-50}
 SEED=${SEED:-42}
 REPEATS=${REPEATS:-3}
 SAVE_OUTPUT=${SAVE_OUTPUT:-1}
+REQUIRED_GPUS=${REQUIRED_GPUS:-2}
 
 # label,num_gpus,ulysses_degree,ring_degree
 RUN_CONFIGS=(
@@ -192,6 +193,24 @@ PY
 source "$SCRATCH/sglang/venv/bin/activate"
 
 nvidia-smi
+echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-unset}"
+echo "SLURM_GPUS=${SLURM_GPUS:-unset}"
+echo "SLURM_JOB_GPUS=${SLURM_JOB_GPUS:-unset}"
+
+VISIBLE_GPUS=$(python3 - <<'PY'
+import torch
+
+print(torch.cuda.device_count())
+PY
+)
+
+echo "torch.cuda.device_count()=${VISIBLE_GPUS}"
+
+if (( VISIBLE_GPUS < REQUIRED_GPUS )); then
+  echo "ERROR: This experiment needs ${REQUIRED_GPUS} visible GPU(s), but only ${VISIBLE_GPUS} are visible."
+  echo "Check the Slurm GPU request syntax for NUS SOC. Try --gpus=2 or --gres=gpu:h100-96:2 if --gpus=h100-96:2 exposes only one GPU."
+  exit 1
+fi
 
 write_csv_header
 
