@@ -274,6 +274,7 @@ print(f"[worker] torch.cuda.device_count()={torch.cuda.device_count()}")
 PY
       sglang serve \
         --model-path "$MODEL_PATH" \
+        --performance-mode manual \
         --num-gpus "$NUM_GPUS" \
         --nnodes "$NNODES" \
         --node-rank "$NODE_RANK_VALUE" \
@@ -306,6 +307,7 @@ PY
 
       sglang generate \
         --model-path "$MODEL_PATH" \
+        --performance-mode manual \
         --num-gpus "$NUM_GPUS" \
         --nnodes "$NNODES" \
         --node-rank "$NODE_RANK_VALUE" \
