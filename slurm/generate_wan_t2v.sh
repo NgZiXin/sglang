@@ -122,7 +122,7 @@ source "$SCRATCH/sglang/venv/bin/activate"
 
 nvidia-smi
 
-for RUN_ID in 1 2 3; do
+for RUN_ID in 1 2 3 4; do
   PERF_PATH="$OUTPUT_DIR/${RUN_PREFIX}_perf_run_${RUN_ID}.json"
   OUTPUT_PATH="$OUTPUT_DIR/${RUN_PREFIX}_run_${RUN_ID}.mp4"
 
