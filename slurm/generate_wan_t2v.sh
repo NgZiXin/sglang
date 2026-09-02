@@ -34,19 +34,27 @@ NUM_FRAMES=81
 FPS=16
 NUM_INFERENCE_STEPS=50
 SEED=42
+LABEL=baseline
+NUM_GPUS=1
+ULYSSES_DEGREE=1
+RING_DEGREE=1
 
 mkdir -p "$HF_HOME" "$TMPDIR" "$XDG_CACHE_HOME" "$TORCHINDUCTOR_CACHE_DIR" "$TRITON_CACHE_DIR" "$OUTPUT_DIR"
 
 append_csv_row() {
-  python3 - "$SUMMARY_CSV" "$PERF_PATH" "$RUN_ID" "$SEED" "$HEIGHT" "$WIDTH" "$NUM_FRAMES" "$FPS" "$NUM_INFERENCE_STEPS" "$OUTPUT_PATH" <<'PY'
+  python3 - "$SUMMARY_CSV" "$PERF_PATH" "$LABEL" "$NUM_GPUS" "$ULYSSES_DEGREE" "$RING_DEGREE" "$RUN_ID" "$SEED" "$HEIGHT" "$WIDTH" "$NUM_FRAMES" "$FPS" "$NUM_INFERENCE_STEPS" <<'PY'
 import csv
 import json
 import os
 import sys
 
-summary_csv, perf_path, run_id, seed, height, width, num_frames, fps, num_steps, output_path = sys.argv[1:]
+summary_csv, perf_path, label, num_gpus, ulysses_degree, ring_degree, run_id, seed, height, width, num_frames, fps, num_steps = sys.argv[1:]
 
 columns = [
+    "label",
+    "num_gpus",
+    "ulysses_degree",
+    "ring_degree",
     "run_id",
     "seed",
     "height",
@@ -61,9 +69,10 @@ columns = [
     "timestep_preparation_ms",
     "denoising_ms",
     "decoding_ms",
+    "scheduler_return_result_spill_arrays_ms",
+    "scheduler_client_materialize_file_refs_ms",
     "stage_durations_json",
     "perf_path",
-    "output_path",
 ]
 
 with open(perf_path, "r", encoding="utf-8") as f:
@@ -76,6 +85,10 @@ stage_durations = {
 }
 
 row = {
+    "label": label,
+    "num_gpus": num_gpus,
+    "ulysses_degree": ulysses_degree,
+    "ring_degree": ring_degree,
     "run_id": run_id,
     "seed": seed,
     "height": height,
@@ -90,9 +103,10 @@ row = {
     "timestep_preparation_ms": stage_durations.get("TimestepPreparationStage", ""),
     "denoising_ms": stage_durations.get("DenoisingStage", ""),
     "decoding_ms": stage_durations.get("DecodingStage", ""),
+    "scheduler_return_result_spill_arrays_ms": stage_durations.get("Scheduler.return_result.spill_arrays", ""),
+    "scheduler_client_materialize_file_refs_ms": stage_durations.get("SchedulerClient.materialize_file_refs", ""),
     "stage_durations_json": json.dumps(stage_durations, sort_keys=True),
     "perf_path": perf_path,
-    "output_path": output_path,
 }
 
 write_header = not os.path.exists(summary_csv) or os.path.getsize(summary_csv) == 0
@@ -116,7 +130,7 @@ for RUN_ID in 1 2 3; do
 
   sglang generate \
     --model-path "$MODEL_PATH" \
-    --num-gpus 1 \
+    --num-gpus "$NUM_GPUS" \
     --prompt "$PROMPT" \
     --height "$HEIGHT" \
     --width "$WIDTH" \

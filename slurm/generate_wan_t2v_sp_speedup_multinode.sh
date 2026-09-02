@@ -61,8 +61,6 @@ import sys
 columns = [
     "label",
     "num_gpus",
-    "nnodes",
-    "gpus_per_node",
     "ulysses_degree",
     "ring_degree",
     "run_id",
@@ -83,11 +81,6 @@ columns = [
     "scheduler_client_materialize_file_refs_ms",
     "stage_durations_json",
     "perf_path",
-    "output_path",
-    "start_time",
-    "end_time",
-    "dist_init_addr",
-    "status",
 ]
 
 with open(sys.argv[1], "w", newline="", encoding="utf-8") as f:
@@ -96,7 +89,7 @@ PY
 }
 
 append_csv_row() {
-  python3 - "$SUMMARY_CSV" "$PERF_PATH" "$LABEL" "$NUM_GPUS" "$NNODES" "$GPUS_PER_NODE" "$ULYSSES_DEGREE" "$RING_DEGREE" "$RUN_ID" "$SEED" "$HEIGHT" "$WIDTH" "$NUM_FRAMES" "$FPS" "$NUM_INFERENCE_STEPS" "$OUTPUT_PATH" "$START_TIME" "$END_TIME" "$DIST_INIT_ADDR" <<'PY'
+  python3 - "$SUMMARY_CSV" "$PERF_PATH" "$LABEL" "$NUM_GPUS" "$ULYSSES_DEGREE" "$RING_DEGREE" "$RUN_ID" "$SEED" "$HEIGHT" "$WIDTH" "$NUM_FRAMES" "$FPS" "$NUM_INFERENCE_STEPS" <<'PY'
 import csv
 import json
 import sys
@@ -106,8 +99,6 @@ import sys
     perf_path,
     label,
     num_gpus,
-    nnodes,
-    gpus_per_node,
     ulysses_degree,
     ring_degree,
     run_id,
@@ -117,10 +108,6 @@ import sys
     num_frames,
     fps,
     num_inference_steps,
-    output_path,
-    start_time,
-    end_time,
-    dist_init_addr,
 ) = sys.argv[1:]
 
 stage_columns = {
@@ -137,8 +124,6 @@ stage_columns = {
 columns = [
     "label",
     "num_gpus",
-    "nnodes",
-    "gpus_per_node",
     "ulysses_degree",
     "ring_degree",
     "run_id",
@@ -159,11 +144,6 @@ columns = [
     "scheduler_client_materialize_file_refs_ms",
     "stage_durations_json",
     "perf_path",
-    "output_path",
-    "start_time",
-    "end_time",
-    "dist_init_addr",
-    "status",
 ]
 
 with open(perf_path, "r", encoding="utf-8") as f:
@@ -178,8 +158,6 @@ for item in perf.get("steps", []):
 row = {
     "label": label,
     "num_gpus": num_gpus,
-    "nnodes": nnodes,
-    "gpus_per_node": gpus_per_node,
     "ulysses_degree": ulysses_degree,
     "ring_degree": ring_degree,
     "run_id": run_id,
@@ -192,11 +170,6 @@ row = {
     "total_duration_ms": perf.get("total_duration_ms", ""),
     "stage_durations_json": json.dumps(stage_durations, sort_keys=True),
     "perf_path": perf_path,
-    "output_path": output_path,
-    "start_time": start_time,
-    "end_time": end_time,
-    "dist_init_addr": dist_init_addr,
-    "status": "success",
 }
 
 for stage_name, column_name in stage_columns.items():
@@ -258,7 +231,6 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
     OUTPUT_PATH="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}_run_${RUN_ID}.mp4"
     WORKER_LOG="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}_run_${RUN_ID}_worker.log"
     DIST_INIT_ADDR="${HEAD_NODE}:$((DIST_PORT_BASE + CONFIG_INDEX * 100 + RUN_ID))"
-    START_TIME=$(date -Is)
 
     export MODEL_PATH PROMPT HEIGHT WIDTH NUM_FRAMES FPS NUM_INFERENCE_STEPS SEED SAVE_OUTPUT
     export NUM_GPUS NNODES GPUS_PER_NODE ULYSSES_DEGREE RING_DEGREE DIST_INIT_ADDR
@@ -333,7 +305,6 @@ PY
         --perf-dump-path "$PERF_PATH"
     '
 
-    END_TIME=$(date -Is)
     append_csv_row
     cleanup_worker
   done

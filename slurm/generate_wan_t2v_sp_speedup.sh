@@ -75,10 +75,6 @@ columns = [
     "scheduler_client_materialize_file_refs_ms",
     "stage_durations_json",
     "perf_path",
-    "output_path",
-    "start_time",
-    "end_time",
-    "status",
 ]
 
 with open(sys.argv[1], "w", newline="", encoding="utf-8") as f:
@@ -87,7 +83,7 @@ PY
 }
 
 append_csv_row() {
-  python3 - "$SUMMARY_CSV" "$PERF_PATH" "$LABEL" "$NUM_GPUS" "$ULYSSES_DEGREE" "$RING_DEGREE" "$RUN_ID" "$SEED" "$HEIGHT" "$WIDTH" "$NUM_FRAMES" "$FPS" "$NUM_INFERENCE_STEPS" "$OUTPUT_PATH" "$START_TIME" "$END_TIME" <<'PY'
+  python3 - "$SUMMARY_CSV" "$PERF_PATH" "$LABEL" "$NUM_GPUS" "$ULYSSES_DEGREE" "$RING_DEGREE" "$RUN_ID" "$SEED" "$HEIGHT" "$WIDTH" "$NUM_FRAMES" "$FPS" "$NUM_INFERENCE_STEPS" <<'PY'
 import csv
 import json
 import sys
@@ -106,9 +102,6 @@ import sys
     num_frames,
     fps,
     num_inference_steps,
-    output_path,
-    start_time,
-    end_time,
 ) = sys.argv[1:]
 
 stage_columns = {
@@ -145,10 +138,6 @@ columns = [
     "scheduler_client_materialize_file_refs_ms",
     "stage_durations_json",
     "perf_path",
-    "output_path",
-    "start_time",
-    "end_time",
-    "status",
 ]
 
 with open(perf_path, "r", encoding="utf-8") as f:
@@ -175,10 +164,6 @@ row = {
     "total_duration_ms": perf.get("total_duration_ms", ""),
     "stage_durations_json": json.dumps(stage_durations, sort_keys=True),
     "perf_path": perf_path,
-    "output_path": output_path,
-    "start_time": start_time,
-    "end_time": end_time,
-    "status": "success",
 }
 
 for stage_name, column_name in stage_columns.items():
@@ -220,7 +205,6 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
   for RUN_ID in $(seq 1 "$REPEATS"); do
     PERF_PATH="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}_perf_run_${RUN_ID}.json"
     OUTPUT_PATH="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}_run_${RUN_ID}.mp4"
-    START_TIME=$(date -Is)
 
     echo "Starting ${LABEL} run ${RUN_ID}/${REPEATS}: num_gpus=${NUM_GPUS}, ulysses_degree=${ULYSSES_DEGREE}, ring_degree=${RING_DEGREE}"
 
@@ -246,7 +230,6 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
       "${OUTPUT_ARGS[@]}" \
       --perf-dump-path "$PERF_PATH"
 
-    END_TIME=$(date -Is)
     append_csv_row
   done
 done

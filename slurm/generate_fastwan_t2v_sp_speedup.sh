@@ -57,9 +57,6 @@ import sys
 
 columns = [
     "label",
-    "model_path",
-    "model_id",
-    "pipeline",
     "num_gpus",
     "ulysses_degree",
     "ring_degree",
@@ -70,26 +67,17 @@ columns = [
     "num_frames",
     "fps",
     "num_inference_steps",
-    "dmd_denoising_steps",
     "total_duration_ms",
     "input_validation_ms",
     "text_encoding_ms",
     "latent_preparation_ms",
     "timestep_preparation_ms",
-    "dmd_denoising_ms",
+    "denoising_ms",
     "decoding_ms",
-    "denoise_step_0_ms",
-    "denoise_step_1_ms",
-    "denoise_step_2_ms",
     "scheduler_return_result_spill_arrays_ms",
     "scheduler_client_materialize_file_refs_ms",
     "stage_durations_json",
-    "denoise_steps_json",
     "perf_path",
-    "output_path",
-    "start_time",
-    "end_time",
-    "status",
 ]
 
 with open(sys.argv[1], "w", newline="", encoding="utf-8") as f:
@@ -98,7 +86,7 @@ PY
 }
 
 append_csv_row() {
-  python3 - "$SUMMARY_CSV" "$PERF_PATH" "$LABEL" "$MODEL_PATH" "$MODEL_ID" "$PIPELINE" "$NUM_GPUS" "$ULYSSES_DEGREE" "$RING_DEGREE" "$RUN_ID" "$SEED" "$HEIGHT" "$WIDTH" "$NUM_FRAMES" "$FPS" "$NUM_INFERENCE_STEPS" "$DMD_DENOISING_STEPS" "$OUTPUT_PATH" "$START_TIME" "$END_TIME" <<'PY'
+  python3 - "$SUMMARY_CSV" "$PERF_PATH" "$LABEL" "$NUM_GPUS" "$ULYSSES_DEGREE" "$RING_DEGREE" "$RUN_ID" "$SEED" "$HEIGHT" "$WIDTH" "$NUM_FRAMES" "$FPS" "$NUM_INFERENCE_STEPS" <<'PY'
 import csv
 import json
 import sys
@@ -107,9 +95,6 @@ import sys
     summary_csv,
     perf_path,
     label,
-    model_path,
-    model_id,
-    pipeline,
     num_gpus,
     ulysses_degree,
     ring_degree,
@@ -120,10 +105,6 @@ import sys
     num_frames,
     fps,
     num_inference_steps,
-    dmd_denoising_steps,
-    output_path,
-    start_time,
-    end_time,
 ) = sys.argv[1:]
 
 stage_columns = {
@@ -131,7 +112,7 @@ stage_columns = {
     "TextEncodingStage": "text_encoding_ms",
     "LatentPreparationStage": "latent_preparation_ms",
     "TimestepPreparationStage": "timestep_preparation_ms",
-    "DmdDenoisingStage": "dmd_denoising_ms",
+    "DmdDenoisingStage": "denoising_ms",
     "DecodingStage": "decoding_ms",
     "Scheduler.return_result.spill_arrays": "scheduler_return_result_spill_arrays_ms",
     "SchedulerClient.materialize_file_refs": "scheduler_client_materialize_file_refs_ms",
@@ -139,9 +120,6 @@ stage_columns = {
 
 columns = [
     "label",
-    "model_path",
-    "model_id",
-    "pipeline",
     "num_gpus",
     "ulysses_degree",
     "ring_degree",
@@ -152,26 +130,17 @@ columns = [
     "num_frames",
     "fps",
     "num_inference_steps",
-    "dmd_denoising_steps",
     "total_duration_ms",
     "input_validation_ms",
     "text_encoding_ms",
     "latent_preparation_ms",
     "timestep_preparation_ms",
-    "dmd_denoising_ms",
+    "denoising_ms",
     "decoding_ms",
-    "denoise_step_0_ms",
-    "denoise_step_1_ms",
-    "denoise_step_2_ms",
     "scheduler_return_result_spill_arrays_ms",
     "scheduler_client_materialize_file_refs_ms",
     "stage_durations_json",
-    "denoise_steps_json",
     "perf_path",
-    "output_path",
-    "start_time",
-    "end_time",
-    "status",
 ]
 
 with open(perf_path, "r", encoding="utf-8") as f:
@@ -183,17 +152,8 @@ for item in perf.get("steps", []):
     if name:
         stage_durations[name] = item.get("duration_ms", "")
 
-denoise_steps = {}
-for item in perf.get("denoise_steps_ms", []):
-    step = item.get("step")
-    if step is not None:
-        denoise_steps[str(step)] = item.get("duration_ms", "")
-
 row = {
     "label": label,
-    "model_path": model_path,
-    "model_id": model_id,
-    "pipeline": pipeline,
     "num_gpus": num_gpus,
     "ulysses_degree": ulysses_degree,
     "ring_degree": ring_degree,
@@ -204,18 +164,9 @@ row = {
     "num_frames": num_frames,
     "fps": fps,
     "num_inference_steps": num_inference_steps,
-    "dmd_denoising_steps": dmd_denoising_steps,
     "total_duration_ms": perf.get("total_duration_ms", ""),
-    "denoise_step_0_ms": denoise_steps.get("0", ""),
-    "denoise_step_1_ms": denoise_steps.get("1", ""),
-    "denoise_step_2_ms": denoise_steps.get("2", ""),
     "stage_durations_json": json.dumps(stage_durations, sort_keys=True),
-    "denoise_steps_json": json.dumps(denoise_steps, sort_keys=True),
     "perf_path": perf_path,
-    "output_path": output_path,
-    "start_time": start_time,
-    "end_time": end_time,
-    "status": "success",
 }
 
 for stage_name, column_name in stage_columns.items():
@@ -262,7 +213,6 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
   for RUN_ID in $(seq 1 "$REPEATS"); do
     PERF_PATH="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}_perf_run_${RUN_ID}.json"
     OUTPUT_PATH="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}_run_${RUN_ID}.mp4"
-    START_TIME=$(date -Is)
 
     echo "Starting ${LABEL} FastWan run ${RUN_ID}/${REPEATS}: num_gpus=${NUM_GPUS}, ulysses_degree=${ULYSSES_DEGREE}, ring_degree=${RING_DEGREE}"
 
@@ -291,7 +241,6 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
       "${OUTPUT_ARGS[@]}" \
       --perf-dump-path "$PERF_PATH"
 
-    END_TIME=$(date -Is)
     append_csv_row
   done
 done
