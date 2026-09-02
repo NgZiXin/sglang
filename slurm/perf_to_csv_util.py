@@ -9,6 +9,7 @@ from pathlib import Path
 # Parse command line arguments
 summary_csv = Path(sys.argv[1])
 perf_path = Path(sys.argv[2])
+metadata_args = sys.argv[3:]
 (
     label,
     num_gpus,
@@ -21,7 +22,8 @@ perf_path = Path(sys.argv[2])
     num_frames,
     fps,
     num_inference_steps,
-) = sys.argv[3:]
+    nodelist,
+) = metadata_args
 
 # Read the perf JSON file and construct a row for the CSV summary
 with perf_path.open("r", encoding="utf-8") as f:
@@ -35,6 +37,7 @@ stage_durations = {
 
 row = {
     "label": label,
+    "nodelist": nodelist,
     "num_gpus": num_gpus,
     "ulysses_degree": ulysses_degree,
     "ring_degree": ring_degree,
@@ -65,8 +68,9 @@ row = {
 }
 
 # Append the row to the CSV summary file
+write_header = not summary_csv.exists()
 with summary_csv.open("a", newline="", encoding="utf-8") as f:
     writer = csv.DictWriter(f, fieldnames=row.keys())
-    if not summary_csv.exists():
+    if write_header:
         writer.writeheader()
     writer.writerow(row)

@@ -40,5 +40,6 @@ append_perf_summary() {
     "$WIDTH" \
     "$NUM_FRAMES" \
     "$FPS" \
-    "$NUM_INFERENCE_STEPS"
+    "$NUM_INFERENCE_STEPS" \
+    "$SLURM_JOB_NODELIST"
 }
