@@ -229,6 +229,7 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
       --sp-degree "$NUM_GPUS" \
       --ulysses-degree "$ULYSSES_DEGREE" \
       --ring-degree "$RING_DEGREE" \
+      --encoder-parallel replicate \
       --cfg-parallel-size 1 \
       --prompt "$PROMPT" \
       --height "$HEIGHT" \
