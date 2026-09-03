@@ -30,9 +30,7 @@ REPEATS=4
 
 # label num_gpus ulysses_degree ring_degree
 RUN_CONFIGS=(
-  "vsa_fastwan_baseline 1 1 1"
-  "vsa_fastwan_ulysses_2 2 2 1"
-  "vsa_fastwan_ring_2 2 1 2"
+  "vsa_fastwan 1 1 1"
 )
 
 setup_sglang_env

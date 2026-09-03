@@ -1,33 +1,36 @@
 #!/bin/bash
-#SBATCH --job-name=wan-t2v-vsa-sp-speed
+#SBATCH --job-name=fastwan-sage-sp-speed
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:h100-96:2
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=192G
-#SBATCH --time=06:00:00
-#SBATCH --output=wan-t2v-vsa-sp-speed-%j.out
+#SBATCH --time=04:00:00
+#SBATCH --output=fastwan-sage-sp-speed-%j.out
 
 set -euo pipefail
 
 source "$HOME/cp4101/sglang/slurm/common.sh"
 
-OUTPUT_DIR="$SCRATCH/sglang/outputs/week4/vsa/wan_t2v_sp_speedup"
-RUN_PREFIX="wan_t2v_vsa_sp_speedup_${SLURM_JOB_ID:-manual}"
+OUTPUT_DIR="$SCRATCH/sglang/outputs/week4/sage/fastwan_t2v_sp_speedup"
+RUN_PREFIX="fastwan_t2v_sage_sp_speedup_${SLURM_JOB_ID:-manual}"
 SUMMARY_CSV="$OUTPUT_DIR/${RUN_PREFIX}_summary.csv"
 
-MODEL_PATH="Wan-AI/Wan2.1-T2V-14B-Diffusers"
+MODEL_PATH="$SCRATCH/models/FastWan2.1-T2V-14B-Diffusers"
+MODEL_ID="Wan-AI/Wan2.1-T2V-14B-Diffusers"
+PIPELINE="WanDMDPipeline"
 PROMPT="A red tram moves slowly through a sunlit city square"
 HEIGHT=480
 WIDTH=832
 NUM_FRAMES=81
 FPS=16
-NUM_INFERENCE_STEPS=50
+NUM_INFERENCE_STEPS=3
+DMD_DENOISING_STEPS="1000,757,522"
 SEED=42
 REPEATS=4
 
 # label num_gpus ulysses_degree ring_degree
 RUN_CONFIGS=(
-  "vsa 1 1 1"
+  "sage_fastwan 1 1 1"
 )
 
 setup_sglang_env
@@ -39,12 +42,14 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
     PERF_PATH="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}_perf_run_${RUN_ID}.json"
     OUTPUT_PATH="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}_run_${RUN_ID}.mp4"
 
-    echo "Starting ${LABEL} run ${RUN_ID}/${REPEATS}: num_gpus=${NUM_GPUS}, ulysses_degree=${ULYSSES_DEGREE}, ring_degree=${RING_DEGREE}"
+    echo "Starting ${LABEL} FastWan run ${RUN_ID}/${REPEATS}: num_gpus=${NUM_GPUS}, ulysses_degree=${ULYSSES_DEGREE}, ring_degree=${RING_DEGREE}"
 
     # --no-save-output
     sglang generate \
       --model-path "$MODEL_PATH" \
-      --attention-backend video_sparse_attn \
+      --model-id "$MODEL_ID" \
+      --pipeline "$PIPELINE" \
+      --attention-backend sage_attn \
       --num-gpus "$NUM_GPUS" \
       --sp-degree "$NUM_GPUS" \
       --ulysses-degree "$ULYSSES_DEGREE" \
@@ -57,6 +62,7 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
       --num-frames "$NUM_FRAMES" \
       --fps "$FPS" \
       --num-inference-steps "$NUM_INFERENCE_STEPS" \
+      --dmd-denoising-steps "$DMD_DENOISING_STEPS" \
       --seed "$SEED" \
       --save-output \
       --output-file-path "$OUTPUT_PATH" \
