@@ -182,6 +182,24 @@ class _SageAttentionBackendResolver(_CudaAttentionBackendResolver):
             return AttentionBackendEnum.FA
 
 
+class _SpargeAttentionBackendResolver(_CudaAttentionBackendResolver):
+    backend = AttentionBackendEnum.SPARGE_ATTN
+
+    @classmethod
+    def resolve(cls, platform) -> str:
+        try:
+            from spas_sage_attn import spas_sage2_attn_meansim_topk_cuda  # noqa: F401
+
+            from sglang.multimodal_gen.runtime.layers.attention.backends.sparge_attn import (  # noqa: F401
+                SpargeAttentionBackend,
+            )
+
+            return "sglang.multimodal_gen.runtime.layers.attention.backends.sparge_attn.SpargeAttentionBackend"
+        except ImportError as e:
+            logger.error("Failed to import Sparge Attention backend: %s", str(e))
+            raise ImportError("Sparge Attention backend is not installed.") from e
+
+
 class _SageAttention3BackendResolver(_CudaAttentionBackendResolver):
     backend = AttentionBackendEnum.SAGE_ATTN_3
 
@@ -382,6 +400,7 @@ _CUDA_ATTENTION_BACKEND_RESOLVERS = {
         _SageSparseLinearAttentionBackendResolver,
         _SlidingTileAttentionBackendResolver,
         _SageAttentionBackendResolver,
+        _SpargeAttentionBackendResolver,
         _SageAttention3BackendResolver,
         _VideoSparseAttentionBackendResolver,
         _SparseVideoGen2AttentionBackendResolver,
