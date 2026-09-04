@@ -50,9 +50,9 @@ class SpargeAttentionImpl(AttentionImpl):
         attn_metadata: AttentionMetadata,
     ) -> torch.Tensor:
         return spas_sage2_attn_meansim_topk_cuda(
-            query,
-            key,
-            value,
+            query.contiguous(),
+            key.contiguous(),
+            value.contiguous(),
             topk=self.topk,
             is_causal=self.causal,
             scale=self.softmax_scale,
