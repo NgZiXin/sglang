@@ -73,5 +73,6 @@ class SpargeAttentionImpl(AttentionImpl):
             tensor_layout="NHD",
         )
         if self.debug:
+            torch.cuda.synchronize(output.device)
             logger.info("Sparge finish: layer=%s", self.prefix)
         return output
