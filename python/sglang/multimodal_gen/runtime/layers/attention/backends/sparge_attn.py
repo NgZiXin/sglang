@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import torch
-from spas_sage_attn import spas_sage2_attn_meansim_topk_cuda
+from spas_sage_attn import spas_sage_attn_meansim_topk_cuda
 
 from sglang.multimodal_gen.runtime.layers.attention.backends.attention_backend import (
     AttentionBackend,
@@ -63,7 +63,7 @@ class SpargeAttentionImpl(AttentionImpl):
                 tuple(key.shape),
                 tuple(value.shape),
             )
-        output = spas_sage2_attn_meansim_topk_cuda(
+        output = spas_sage_attn_meansim_topk_cuda(
             query.contiguous(),
             key.contiguous(),
             value.contiguous(),

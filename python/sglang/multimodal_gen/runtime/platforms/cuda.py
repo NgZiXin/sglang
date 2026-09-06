@@ -188,7 +188,7 @@ class _SpargeAttentionBackendResolver(_CudaAttentionBackendResolver):
     @classmethod
     def resolve(cls, platform) -> str:
         try:
-            from spas_sage_attn import spas_sage2_attn_meansim_topk_cuda  # noqa: F401
+            from spas_sage_attn import spas_sage_attn_meansim_topk_cuda  # noqa: F401
 
             from sglang.multimodal_gen.runtime.layers.attention.backends.sparge_attn import (  # noqa: F401
                 SpargeAttentionBackend,
