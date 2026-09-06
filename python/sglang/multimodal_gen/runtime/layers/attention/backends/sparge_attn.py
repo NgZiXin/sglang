@@ -45,7 +45,6 @@ class SpargeAttentionImpl(AttentionImpl):
         self.softmax_scale = softmax_scale
         self.topk = extra_impl_args.get("topk", 0.5)
         self.prefix = prefix
-        self.debug = True
 
     def forward(
         self,
@@ -54,25 +53,13 @@ class SpargeAttentionImpl(AttentionImpl):
         value: torch.Tensor,
         attn_metadata: AttentionMetadata,
     ) -> torch.Tensor:
-        if self.debug:
-            logger.info(
-                "Sparge start: layer=%s timestep=%s q=%s k=%s v=%s",
-                self.prefix,
-                getattr(attn_metadata, "current_timestep", None),
-                tuple(query.shape),
-                tuple(key.shape),
-                tuple(value.shape),
-            )
         output = spas_sage_attn_meansim_topk_cuda(
-            query.contiguous(),
-            key.contiguous(),
-            value.contiguous(),
+            query,
+            key,
+            value,
             topk=self.topk,
             is_causal=self.causal,
             scale=self.softmax_scale,
             tensor_layout="NHD",
         )
-        if self.debug:
-            torch.cuda.synchronize(output.device)
-            logger.info("Sparge finish: layer=%s", self.prefix)
         return output
