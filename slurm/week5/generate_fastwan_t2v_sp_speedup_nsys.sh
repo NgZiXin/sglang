@@ -53,7 +53,7 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
       --sample=none \
       --cpuctxsw=none \
       --force-overwrite=true \
-      --stats=false \
+      --stats=true \
       -o "$NSYS_OUTPUT_PATH" \
       sglang generate \
       --model-path "$MODEL_PATH" \

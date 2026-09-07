@@ -199,13 +199,11 @@ def generate_cmd(args: argparse.Namespace, unknown_args: list[str] | None = None
     generator = DiffGenerator.from_pretrained(
         model_path=server_args.model_path, server_args=server_args, local_mode=True
     )
-    try:
-        results = generator.generate(sampling_params_kwargs=sampling_params_kwargs)
 
-        prompt = sampling_params_kwargs.get("prompt")
-        maybe_dump_performance(args, server_args, prompt, results)
-    finally:
-        generator.shutdown()
+    results = generator.generate(sampling_params_kwargs=sampling_params_kwargs)
+
+    prompt = sampling_params_kwargs.get("prompt")
+    maybe_dump_performance(args, server_args, prompt, results)
 
 
 class GenerateSubcommand(CLISubcommand):
