@@ -1,18 +1,18 @@
 #!/bin/bash
-#SBATCH --job-name=fastwan-sparge-sp-speed
+#SBATCH --job-name=fastwan-sparge-nsys
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:h100-96:1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=192G
 #SBATCH --time=04:00:00
-#SBATCH --output=fastwan-sparge-sp-speed-%j.out
+#SBATCH --output=fastwan-sparge-nsys-%j.out
 
 set -euo pipefail
 
 source "$HOME/cp4101/sglang/slurm/common.sh"
 
-OUTPUT_DIR="$SCRATCH/sglang/outputs/week4/sparge/fastwan_t2v_sp_speedup"
-RUN_PREFIX="fastwan_t2v_sparge_sp_speedup_${SLURM_JOB_ID:-manual}"
+OUTPUT_DIR="$SCRATCH/sglang/outputs/week5/sparge/nsys"
+RUN_PREFIX="fastwan_t2v_sparge_nsys_${SLURM_JOB_ID:-manual}"
 SUMMARY_CSV="$OUTPUT_DIR/${RUN_PREFIX}_summary.csv"
 
 MODEL_PATH="$SCRATCH/models/FastWan2.1-T2V-14B-Diffusers"
@@ -26,7 +26,7 @@ FPS=16
 NUM_INFERENCE_STEPS=3
 DMD_DENOISING_STEPS="1000,757,522"
 SEED=42
-REPEATS=4
+REPEATS=1
 
 # label num_gpus ulysses_degree ring_degree
 RUN_CONFIGS=(
@@ -41,11 +41,19 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
   for RUN_ID in $(seq 1 "$REPEATS"); do
     PERF_PATH="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}_perf_run_${RUN_ID}.json"
     OUTPUT_PATH="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}_run_${RUN_ID}.mp4"
+    NSYS_OUTPUT_PATH="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}_run_${RUN_ID}"
 
     echo "Starting ${LABEL} FastWan run ${RUN_ID}/${REPEATS}: num_gpus=${NUM_GPUS}, ulysses_degree=${ULYSSES_DEGREE}, ring_degree=${RING_DEGREE}"
 
     # --no-save-output
-    sglang generate \
+    nsys profile \
+      -t cuda,nvtx \
+      --sample=none \
+      --cpuctxsw=none \
+      --force-overwrite=true \
+      --stats=false \
+      -o "$NSYS_OUTPUT_PATH" \
+      sglang generate \
       --model-path "$MODEL_PATH" \
       --model-id "$MODEL_ID" \
       --pipeline "$PIPELINE" \
@@ -66,7 +74,8 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
       --seed "$SEED" \
       --save-output \
       --output-file-path "$OUTPUT_PATH" \
-      --perf-dump-path "$PERF_PATH"
+      --perf-dump-path "$PERF_PATH" \
+      --enable-layerwise-nvtx-marker
 
     append_perf_summary
   done
