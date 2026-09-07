@@ -20,6 +20,7 @@ class AdapterArchConfig(ArchConfig):
         default_factory=lambda: {
             AttentionBackendEnum.SLIDING_TILE_ATTN,
             AttentionBackendEnum.SAGE_ATTN,
+            AttentionBackendEnum.SPARGE_ATTN,
             AttentionBackendEnum.FA,
             AttentionBackendEnum.AITER,
             AttentionBackendEnum.AITER_SAGE,
