@@ -49,6 +49,7 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
     nsys profile \
       -t cuda,nvtx,osrt \
       --trace-fork-before-exec=true \
+      --wait=primary \
       --sample=none \
       --cpuctxsw=none \
       --force-overwrite=true \
