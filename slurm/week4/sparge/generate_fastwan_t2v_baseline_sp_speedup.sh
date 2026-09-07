@@ -1,18 +1,18 @@
 #!/bin/bash
-#SBATCH --job-name=fastwan-sparge-sp-speed
+#SBATCH --job-name=fastwan-baseline-sp-speed
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:h100-96:1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=192G
 #SBATCH --time=04:00:00
-#SBATCH --output=fastwan-sparge-sp-speed-%j.out
+#SBATCH --output=fastwan-baseline-sp-speed-%j.out
 
 set -euo pipefail
 
 source "$HOME/cp4101/sglang/slurm/common.sh"
 
 OUTPUT_DIR="$SCRATCH/sglang/outputs/week4/sparge/fastwan_t2v_sp_speedup"
-RUN_PREFIX="fastwan_t2v_sparge_sp_speedup_${SLURM_JOB_ID:-manual}"
+RUN_PREFIX="fastwan_t2v_baseline_sp_speedup_${SLURM_JOB_ID:-manual}"
 SUMMARY_CSV="$OUTPUT_DIR/${RUN_PREFIX}_summary.csv"
 
 MODEL_PATH="$SCRATCH/models/FastWan2.1-T2V-14B-Diffusers"
@@ -30,7 +30,7 @@ REPEATS=4
 
 # label num_gpus ulysses_degree ring_degree
 RUN_CONFIGS=(
-  "sparge_fastwan 1 1 1"
+  "baseline 1 1 1"
 )
 
 setup_sglang_env
@@ -49,7 +49,6 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
       --model-path "$MODEL_PATH" \
       --model-id "$MODEL_ID" \
       --pipeline "$PIPELINE" \
-      --attention-backend sparge_attn \
       --num-gpus "$NUM_GPUS" \
       --sp-degree "$NUM_GPUS" \
       --ulysses-degree "$ULYSSES_DEGREE" \
