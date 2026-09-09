@@ -13,7 +13,7 @@ source "$HOME/cp4101/sglang/slurm/common.sh"
 
 OUTPUT_DIR="$SCRATCH/sglang/outputs/week4/sparge/fastwan_t2v_sp_speedup"
 RUN_PREFIX="fastwan_t2v_sparge_sp_speedup_${SLURM_JOB_ID:-manual}"
-SUMMARY_CSV="$OUTPUT_DIR/${RUN_PREFIX}_summary.csv"
+SUMMARY_CSV="$OUTPUT_DIR/${RUN_PREFIX}_summary_a10040.csv"
 
 MODEL_PATH="$SCRATCH/models/FastWan2.1-T2V-14B-Diffusers"
 MODEL_ID="Wan-AI/Wan2.1-T2V-14B-Diffusers"
@@ -21,7 +21,7 @@ PIPELINE="WanDMDPipeline"
 PROMPT="A red tram moves slowly through a sunlit city square"
 HEIGHT=480
 WIDTH=832
-NUM_FRAMES=81
+NUM_FRAMES=61 # change
 FPS=16
 NUM_INFERENCE_STEPS=3
 DMD_DENOISING_STEPS="1000,757,522"
