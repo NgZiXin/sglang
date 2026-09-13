@@ -1,18 +1,18 @@
 #!/bin/bash
-#SBATCH --job-name=wan-t2v-sage-cache-dit-nsys
+#SBATCH --job-name=wan-t2v-baseline-nsys
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:h100-96:1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=192G
 #SBATCH --time=06:00:00
-#SBATCH --output=wan-t2v-sage-cache-dit-nsys-%j.out
+#SBATCH --output=wan-t2v-baseline-nsys-%j.out
 
 set -euo pipefail
 
 source "$HOME/cp4101/sglang/slurm/common.sh"
 
-OUTPUT_DIR="$SCRATCH/sglang/outputs/week6/nsys/sage_cache_dit"
-RUN_PREFIX="wan_t2v_sage_cache_dit_nsys_${SLURM_JOB_ID:-manual}"
+OUTPUT_DIR="$SCRATCH/sglang/outputs/week6/nsys/baseline"
+RUN_PREFIX="wan_t2v_baseline_nsys_${SLURM_JOB_ID:-manual}"
 SUMMARY_CSV="$OUTPUT_DIR/${RUN_PREFIX}_summary.csv"
 
 MODEL_PATH="Wan-AI/Wan2.1-T2V-14B-Diffusers"
@@ -27,7 +27,7 @@ REPEATS=1
 
 # label num_gpus ulysses_degree ring_degree
 RUN_CONFIGS=(
-  "sage_cache_dit 1 1 1"
+  "baseline 1 1 1"
 )
 
 setup_sglang_env
@@ -52,7 +52,6 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
       -o "$NSYS_OUTPUT_PATH" \
       sglang generate \
       --model-path "$MODEL_PATH" \
-      --attention-backend sage_attn \
       --num-gpus "$NUM_GPUS" \
       --sp-degree "$NUM_GPUS" \
       --ulysses-degree "$ULYSSES_DEGREE" \
@@ -66,7 +65,6 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
       --fps "$FPS" \
       --num-inference-steps "$NUM_INFERENCE_STEPS" \
       --seed "$SEED" \
-      --enable-cache-dit \
       --save-output \
       --output-file-path "$OUTPUT_PATH" \
       --perf-dump-path "$PERF_PATH" \
