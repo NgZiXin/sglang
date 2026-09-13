@@ -28,6 +28,7 @@ REPEATS=4
 # label num_gpus ulysses_degree ring_degree
 RUN_CONFIGS=(
   "sage_cache_dit_ring_2 2 1 2"
+  "sage_cache_dit 1 1 1"
 )
 
 setup_sglang_env
