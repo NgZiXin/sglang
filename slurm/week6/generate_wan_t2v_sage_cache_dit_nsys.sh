@@ -50,7 +50,7 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
       --sampling-frequency=1000 \
       --cpuctxsw=process-tree \
       --gpu-metrics-devices=cuda-visible \
-      --gpu-metrics-frequency=10000 \
+      --gpu-metrics-frequency=1000 \
       --force-overwrite=true \
       --stats=false \
       -o "$NSYS_OUTPUT_PATH" \
