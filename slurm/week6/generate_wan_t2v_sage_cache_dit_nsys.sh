@@ -45,10 +45,8 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
     # --no-save-output
     nsys profile \
       -t cuda,nvtx \
-      --sample=process-tree \
+       --sample=process-tree \
       --backtrace=auto \
-      --sampling-frequency=1000 \
-      --cpuctxsw=process-tree \
       --gpu-metrics-devices=cuda-visible \
       --gpu-metrics-frequency=1000 \
       --force-overwrite=true \
