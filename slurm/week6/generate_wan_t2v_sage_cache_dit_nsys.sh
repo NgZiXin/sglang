@@ -46,7 +46,7 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
     nsys profile \
       -t cuda,nvtx \
        --sample=process-tree \
-      --backtrace=auto \
+      --backtrace=dwarf \
       --gpu-metrics-devices=cuda-visible \
       --gpu-metrics-frequency=1000 \
       --force-overwrite=true \
