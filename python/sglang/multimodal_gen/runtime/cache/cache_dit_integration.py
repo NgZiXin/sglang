@@ -113,6 +113,14 @@ def _patch_cache_dit_similarity():
 
         diff = (mean_diff / mean_t1).item()
         self.add_residual_diff(diff)
+        if hasattr(self, "_cache_decision"):
+            return self._cache_decision(
+                diff < threshold,
+                "similarity_hit" if diff < threshold else "similarity_threshold",
+                prefix,
+                diff,
+                threshold,
+            )
         return diff < threshold
 
     cache_manager.CachedContextManager.similarity = patched_similarity
