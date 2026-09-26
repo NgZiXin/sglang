@@ -11,7 +11,7 @@ set -euo pipefail
 
 source "$HOME/cp4101/sglang/slurm/common.sh"
 
-OUTPUT_DIR="$SCRATCH/sglang/outputs/week7/cache_dit_csv"
+OUTPUT_DIR="$SCRATCH/sglang/outputs/week7/cache_dit_csv_2"
 RUN_PREFIX="wan_t2v_cache_dit_csv_${SLURM_JOB_ID:-manual}"
 SUMMARY_CSV="$OUTPUT_DIR/${RUN_PREFIX}_summary.csv"
 export CACHE_DIT_DECISION_CSV="$OUTPUT_DIR/${RUN_PREFIX}_cache_decisions.csv"
@@ -44,7 +44,7 @@ export SGLANG_CACHE_DIT_FN=1
 export SGLANG_CACHE_DIT_BN=0
 export SGLANG_CACHE_DIT_WARMUP=4
 export SGLANG_CACHE_DIT_RDT=0.24
-export SGLANG_CACHE_DIT_TAYLORSEER=true
+export SGLANG_CACHE_DIT_TAYLORSEER=false
 export SGLANG_CACHE_DIT_TS_ORDER=1
 export SGLANG_CACHE_DIT_SCM_PRESET=none
 export SGLANG_CACHE_DIT_SCM_POLICY=dynamic
