@@ -11,7 +11,7 @@ set -euo pipefail
 
 source "$HOME/cp4101/sglang/slurm/common.sh"
 
-OUTPUT_DIR="$SCRATCH/sglang/outputs/week7/cache_dit_csv_2"
+OUTPUT_DIR="$SCRATCH/sglang/outputs/week7/cache_dit_csv_2_test"
 RUN_PREFIX="wan_t2v_cache_dit_csv_${SLURM_JOB_ID:-manual}"
 SUMMARY_CSV="$OUTPUT_DIR/${RUN_PREFIX}_summary.csv"
 export CACHE_DIT_DECISION_CSV="$OUTPUT_DIR/${RUN_PREFIX}_cache_decisions.csv"
@@ -37,7 +37,7 @@ PROMPT_CONFIGS=(
 SEEDS=(42 123)
 
 # Maximum consecutive cached steps; -1 means no cap.
-MAX_CONTINUOUS_CACHED_STEPS_VALUES=(3 4 6 -1)
+MAX_CONTINUOUS_CACHED_STEPS_VALUES=(6)
 
 # Fixed cache settings
 export SGLANG_CACHE_DIT_FN=1
