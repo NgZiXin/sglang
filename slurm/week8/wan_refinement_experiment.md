@@ -28,17 +28,18 @@ the effective refinement step count for its warmup, refresh and masks.
 
 ## Run
 
-Use your existing GPU allocation and activated SGLang environment. From the
-repository root:
+Submit from the repository root, like the other Slurm scripts:
 
 ```bash
-python python/sglang/multimodal_gen/test/unit/test_wan_refinement.py -v
-
-FASTWAN_MODEL_PATH="$SCRATCH/models/FastWan2.1-T2V-14B-Diffusers" \
-OUTPUT_DIR="$SCRATCH/sglang/outputs/week8/refinement_seed42_sigma04" \
-SIGMA=0.4 SCHEDULE=rescale \
-bash slurm/week8/wan_refinement_experiment.sh
+sbatch slurm/week8/wan_refinement_smoke.sh
+sbatch slurm/week8/wan_refinement_experiment.sh
 ```
+
+Both jobs source `slurm/common.sh` and call `setup_sglang_env`. Edit the fixed
+settings at the top of each script. No model-path environment variable is required.
+The smoke test runs just the draft and cached refinement. Outputs are saved under
+`$SCRATCH/sglang/outputs/week8/wan_refinement_smoke` or
+`$SCRATCH/sglang/outputs/week8/wan_refinement_experiment`, with job IDs in filenames.
 
 The runner uses the existing local FastWan checkpoint/`--model-id`/DMD pipeline
 recipe in this repository. It starts with one GPU and produces six cases:
@@ -50,22 +51,19 @@ recipe in this repository. It starts with one GPU and produces six cases:
 5. Identical FastWan draft refinement with cache-dit.
 6. Base-generated draft refinement with cache-dit and the same schedule/noise seed.
 
-Use separate output directories for repeats; video, latent and perf outputs
-are replaced when names repeat, while the external CSV hook may append.
 Repeat over multiple prompts and seeds. Try sigma 0.2, 0.4, 0.6, then compare
 `rescale` with `suffix`. Keep threshold, Fn/Bn, guidance and other acceleration
 settings fixed. Keep the same resolution/frame count in both generation stages.
 
 ## Measurements and interpretation
 
-Each case saves a video, a perf JSON, and logs. Existing `CACHE_DIT_DECISION_CSV`,
-`CACHE_DIT_RUN_LABEL` and `CACHE_DIT_RUN_ID` hooks are used for decisions; they
-require the instrumented cache-dit already used by the week7 scripts. An
-upstream cache-dit without those hooks may not create the CSV. Do not interpret
-a missing CSV as zero hits. No threshold logic is modified by this patch.
+Each case saves a video, performance JSON, and log. Timing results are also
+appended to a summary CSV through the existing `append_perf_summary` helper.
+Cache-enabled runs log `cache-dit summary` with hits, calls, and hit rate.
+Startup warmup runs are excluded; cache warmup and forced full-compute steps
+within generation remain in the denominator. These scripts do not export
+per-step cache decision CSVs.
 
-Compare cached/full calls, decision reasons and residual differences separately
-for each CFG branch. Warmup/forced-refresh decisions are not threshold misses.
 Use full vs cached refinement to assess approximation damage, and compare both
 against ordinary Wan for motion, anatomy and prompt adherence.
 

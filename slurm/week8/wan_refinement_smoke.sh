@@ -1,35 +1,111 @@
-#!/usr/bin/env bash
-# Run from the repo root inside an active GPU allocation and SGLang environment.
-# Usage: FASTWAN_MODEL_PATH=/path/to/FastWan bash slurm/week8/wan_refinement_smoke.sh
+#!/bin/bash
+#SBATCH --job-name=wan-refinement-smoke
+#SBATCH --partition=gpu
+#SBATCH --gres=gpu:h100-96:1
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=192G
+#SBATCH --time=04:00:00
+#SBATCH --output=wan-refinement-smoke-%j.out
+
 set -euo pipefail
 
-: "${FASTWAN_MODEL_PATH:?Set FASTWAN_MODEL_PATH to your FastWan 2.1 14B checkpoint}"
-BASE_MODEL="${BASE_MODEL:-Wan-AI/Wan2.1-T2V-14B-Diffusers}"
-OUT="outputs/week8/wan_refinement_smoke"
-mkdir -p "$OUT"
+source "$HOME/cp4101/sglang/slurm/common.sh"
 
-COMMON=(--num-gpus 1 --height 480 --width 832 --num-frames 81 --fps 16
-        --prompt "A red tram moves slowly through a sunlit city square"
-        --seed 42 --cfg-gate-step 1.0 --save-output)
+OUTPUT_DIR="$SCRATCH/sglang/outputs/week8/wan_refinement_smoke"
+RUN_PREFIX="wan_refinement_smoke_${SLURM_JOB_ID:-manual}"
+SUMMARY_CSV="$OUTPUT_DIR/${RUN_PREFIX}_summary.csv"
 
-echo "1/2: Generate a three-step FastWan draft"
-sglang generate "${COMMON[@]}" \
-    --model-path "$FASTWAN_MODEL_PATH" --model-id "$BASE_MODEL" \
-    --pipeline WanDMDPipeline --num-inference-steps 3 \
-    --dmd-denoising-steps 1000,757,522 --guidance-scale 1 \
-    --enable-cache-dit false \
-    --wan-save-latent-path "$OUT/draft.pt" \
-    --perf-dump-path "$OUT/draft_perf.json" \
-    --output-file-path "$OUT/draft.mp4" 2>&1 | tee "$OUT/draft.log"
-test -s "$OUT/draft.pt"
+FASTWAN_MODEL_PATH="$SCRATCH/models/FastWan2.1-T2V-14B-Diffusers"
+MODEL_ID="Wan-AI/Wan2.1-T2V-14B-Diffusers"
+PROMPT="A red tram moves slowly through a sunlit city square"
+HEIGHT=480
+WIDTH=832
+NUM_FRAMES=81
+FPS=16
+SEED=42
+NUM_GPUS=1
+ULYSSES_DEGREE=1
+RING_DEGREE=1
+DMD_DENOISING_STEPS="1000,757,522"
+REFINE_STEPS=50
+REFINE_SIGMA=0.4
+DRAFT_PATH="$OUTPUT_DIR/${RUN_PREFIX}_draft.pt"
 
-echo "2/2: Refine the draft for 50 steps with cache-dit"
-# Default refinement schedule preserves 50 steps; cache-dit uses its defaults.
-sglang generate "${COMMON[@]}" \
-    --model-path "$BASE_MODEL" --num-inference-steps 50 --guidance-scale 5 \
-    --wan-init-latent-path "$OUT/draft.pt" --wan-refine-sigma 0.4 \
-    --enable-cache-dit true \
-    --perf-dump-path "$OUT/refined_perf.json" \
-    --output-file-path "$OUT/refined.mp4" 2>&1 | tee "$OUT/refined.log"
+setup_sglang_env
 
-echo "Done. Videos, logs, and performance JSON: $OUT"
+# 1. Generate the FastWan draft and save its latent.
+LABEL="draft"
+RUN_ID=1
+NUM_INFERENCE_STEPS=3
+PERF_PATH="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}_perf.json"
+OUTPUT_PATH="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}.mp4"
+LOG_PATH="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}.log"
+
+echo "Starting FastWan draft"
+
+sglang generate \
+  --model-path "$FASTWAN_MODEL_PATH" \
+  --model-id "$MODEL_ID" \
+  --pipeline WanDMDPipeline \
+  --num-gpus "$NUM_GPUS" \
+  --sp-degree "$NUM_GPUS" \
+  --ulysses-degree "$ULYSSES_DEGREE" \
+  --ring-degree "$RING_DEGREE" \
+  --encoder-parallel replicate \
+  --cfg-parallel-size 1 \
+  --prompt "$PROMPT" \
+  --height "$HEIGHT" \
+  --width "$WIDTH" \
+  --num-frames "$NUM_FRAMES" \
+  --fps "$FPS" \
+  --num-inference-steps "$NUM_INFERENCE_STEPS" \
+  --seed "$SEED" \
+  --cfg-gate-step 1.0 \
+  --dmd-denoising-steps "$DMD_DENOISING_STEPS" \
+  --guidance-scale 1 \
+  --enable-cache-dit false \
+  --wan-save-latent-path "$DRAFT_PATH" \
+  --save-output \
+  --output-file-path "$OUTPUT_PATH" \
+  --perf-dump-path "$PERF_PATH" 2>&1 | tee "$LOG_PATH"
+
+append_perf_summary
+test -s "$DRAFT_PATH"
+
+# 2. Refine the draft with base Wan and cache-dit.
+LABEL="refined"
+RUN_ID=2
+NUM_INFERENCE_STEPS="$REFINE_STEPS"
+PERF_PATH="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}_perf.json"
+OUTPUT_PATH="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}.mp4"
+LOG_PATH="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}.log"
+
+echo "Starting Wan refinement"
+
+sglang generate \
+  --model-path "$MODEL_ID" \
+  --num-gpus "$NUM_GPUS" \
+  --sp-degree "$NUM_GPUS" \
+  --ulysses-degree "$ULYSSES_DEGREE" \
+  --ring-degree "$RING_DEGREE" \
+  --encoder-parallel replicate \
+  --cfg-parallel-size 1 \
+  --prompt "$PROMPT" \
+  --height "$HEIGHT" \
+  --width "$WIDTH" \
+  --num-frames "$NUM_FRAMES" \
+  --fps "$FPS" \
+  --num-inference-steps "$NUM_INFERENCE_STEPS" \
+  --seed "$SEED" \
+  --cfg-gate-step 1.0 \
+  --guidance-scale 5 \
+  --enable-cache-dit true \
+  --wan-init-latent-path "$DRAFT_PATH" \
+  --wan-refine-sigma "$REFINE_SIGMA" \
+  --save-output \
+  --output-file-path "$OUTPUT_PATH" \
+  --perf-dump-path "$PERF_PATH" 2>&1 | tee "$LOG_PATH"
+
+append_perf_summary
+
+echo "Smoke test completed. Outputs: $OUTPUT_DIR"

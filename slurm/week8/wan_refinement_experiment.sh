@@ -1,65 +1,135 @@
 #!/bin/bash
-# Run inside an existing GPU allocation with the project's environment active.
-# Does not submit jobs or select a cluster partition.
+#SBATCH --job-name=wan-refinement-experiment
+#SBATCH --partition=gpu
+#SBATCH --gres=gpu:h100-96:1
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=192G
+#SBATCH --time=16:00:00
+#SBATCH --output=wan-refinement-experiment-%j.out
+
 set -euo pipefail
 
-: "${FASTWAN_MODEL_PATH:?Set FASTWAN_MODEL_PATH to your local FastWan 2.1 14B checkpoint}"
-BASE_MODEL="${BASE_MODEL:-Wan-AI/Wan2.1-T2V-14B-Diffusers}"
-OUTPUT_DIR="${OUTPUT_DIR:-outputs/week8/wan_refinement}"
-PROMPT="${PROMPT:-A red tram moves slowly through a sunlit city square}"
-SEED="${SEED:-42}"
-SIGMA="${SIGMA:-0.4}"
-SCHEDULE="${SCHEDULE:-rescale}"
-HEIGHT="${HEIGHT:-480}"
-WIDTH="${WIDTH:-832}"
-NUM_FRAMES="${NUM_FRAMES:-81}"
-STEPS="${STEPS:-50}"
-mkdir -p "$OUTPUT_DIR"
+source "$HOME/cp4101/sglang/slurm/common.sh"
 
-# One GPU initially isolates the initialization experiment from parallelism.
-COMMON=(--num-gpus 1 --sp-degree 1 --ulysses-degree 1 --ring-degree 1
-        --cfg-parallel-size 1 --prompt "$PROMPT" --height "$HEIGHT"
-        --width "$WIDTH" --num-frames "$NUM_FRAMES" --fps 16 --seed "$SEED"
-        --cfg-gate-step 1.0 --save-output)
+OUTPUT_DIR="$SCRATCH/sglang/outputs/week8/wan_refinement_experiment"
+RUN_PREFIX="wan_refinement_experiment_${SLURM_JOB_ID:-manual}"
+SUMMARY_CSV="$OUTPUT_DIR/${RUN_PREFIX}_summary.csv"
 
-# Explicit overrides keep threshold/cache policy identical in all cache-on runs.
-CACHE_PARAMS='{"Fn_compute_blocks":1,"Bn_compute_blocks":0,"max_warmup_steps":4,"residual_diff_threshold":0.24,"max_continuous_cached_steps":3,"enable_taylorseer":false,"scm_preset":"none","scm_policy":"dynamic"}'
+FASTWAN_MODEL_PATH="$SCRATCH/models/FastWan2.1-T2V-14B-Diffusers"
+MODEL_ID="Wan-AI/Wan2.1-T2V-14B-Diffusers"
+PROMPT="A red tram moves slowly through a sunlit city square"
+HEIGHT=480
+WIDTH=832
+NUM_FRAMES=81
+FPS=16
+SEED=42
+NUM_GPUS=1
+ULYSSES_DEGREE=1
+RING_DEGREE=1
+DMD_DENOISING_STEPS="1000,757,522"
+REFINE_STEPS=50
+REFINE_SIGMA=0.4
+DRAFT_PATH="$OUTPUT_DIR/${RUN_PREFIX}_draft.pt"
+BASE_PATH="$OUTPUT_DIR/${RUN_PREFIX}_base.pt"
+REFINE_SCHEDULE="rescale"
 
-run_case() {
-    local label="$1"
-    shift
-    # These hooks already appear in this checkout's week7 scripts. They require
-    # the user's instrumented cache-dit; upstream builds may not write the CSV.
-    CACHE_DIT_DECISION_CSV="$OUTPUT_DIR/${label}_cache.csv" \
-    CACHE_DIT_RUN_LABEL="$label" CACHE_DIT_RUN_ID=1 \
-      sglang generate "${COMMON[@]}" \
-        --output-file-path "$OUTPUT_DIR/${label}.mp4" \
-        --perf-dump-path "$OUTPUT_DIR/${label}_perf.json" \
-        "$@" 2>&1 | tee "$OUTPUT_DIR/${label}.log"
-}
+# Fixed cache settings, matching the week7 experiments.
+export SGLANG_CACHE_DIT_FN=1
+export SGLANG_CACHE_DIT_BN=0
+export SGLANG_CACHE_DIT_WARMUP=4
+export SGLANG_CACHE_DIT_RDT=0.24
+export SGLANG_CACHE_DIT_MC=3
+export SGLANG_CACHE_DIT_TAYLORSEER=false
+export SGLANG_CACHE_DIT_SCM_PRESET=none
+export SGLANG_CACHE_DIT_SCM_POLICY=dynamic
+unset SGLANG_CACHE_DIT_SCM_COMPUTE_BINS SGLANG_CACHE_DIT_SCM_CACHE_BINS
 
-# Match the existing FastWan launch recipe in this repository. guidance=1
-# makes the distilled draft's CFG behavior explicit.
-run_case draft --model-path "$FASTWAN_MODEL_PATH" --model-id "$BASE_MODEL" \
-    --pipeline WanDMDPipeline --num-inference-steps 3 \
-    --dmd-denoising-steps 1000,757,522 --guidance-scale 1 \
-    --enable-cache-dit false --wan-save-latent-path "$OUTPUT_DIR/draft.pt"
+RUN_CONFIGS=(
+  draft
+  baseline_full
+  baseline_cache
+  draft_refine_full
+  draft_refine_cache
+  base_refine_cache
+)
 
-# Base-generated clean video is a control for the effect of the draft source.
-run_case baseline_full --model-path "$BASE_MODEL" --num-inference-steps "$STEPS" \
-    --guidance-scale 5 --enable-cache-dit false \
-    --wan-save-latent-path "$OUTPUT_DIR/base.pt"
-run_case baseline_cache --model-path "$BASE_MODEL" --num-inference-steps "$STEPS" \
-    --guidance-scale 5 --enable-cache-dit true --cache-dit-params "$CACHE_PARAMS"
+setup_sglang_env
 
-REFINE=(--model-path "$BASE_MODEL" --num-inference-steps "$STEPS"
-        --guidance-scale 5 --wan-refine-sigma "$SIGMA"
-        --wan-refine-schedule "$SCHEDULE")
-run_case draft_refine_full "${REFINE[@]}" \
-    --wan-init-latent-path "$OUTPUT_DIR/draft.pt" --enable-cache-dit false
-run_case draft_refine_cache "${REFINE[@]}" \
-    --wan-init-latent-path "$OUTPUT_DIR/draft.pt" --enable-cache-dit true \
-    --cache-dit-params "$CACHE_PARAMS"
-run_case base_refine_cache "${REFINE[@]}" \
-    --wan-init-latent-path "$OUTPUT_DIR/base.pt" --enable-cache-dit true \
-    --cache-dit-params "$CACHE_PARAMS"
+RUN_ID=0
+
+for LABEL in "${RUN_CONFIGS[@]}"; do
+  RUN_ID=$((RUN_ID + 1))
+  MODEL_PATH="$MODEL_ID"
+  NUM_INFERENCE_STEPS="$REFINE_STEPS"
+  GUIDANCE_SCALE=5
+  ENABLE_CACHE=false
+  EXTRA_ARGS=()
+
+  case "$LABEL" in
+    draft)
+      MODEL_PATH="$FASTWAN_MODEL_PATH"
+      NUM_INFERENCE_STEPS=3
+      GUIDANCE_SCALE=1
+      EXTRA_ARGS=(
+        --model-id "$MODEL_ID"
+        --pipeline WanDMDPipeline
+        --dmd-denoising-steps "$DMD_DENOISING_STEPS"
+        --wan-save-latent-path "$DRAFT_PATH"
+      )
+      ;;
+    baseline_full)
+      EXTRA_ARGS=(--wan-save-latent-path "$BASE_PATH")
+      ;;
+    baseline_cache)
+      ENABLE_CACHE=true
+      ;;
+    draft_refine_full|draft_refine_cache|base_refine_cache)
+      INIT_PATH="$DRAFT_PATH"
+      if [[ "$LABEL" == "base_refine_cache" ]]; then
+        INIT_PATH="$BASE_PATH"
+      fi
+      if [[ "$LABEL" != "draft_refine_full" ]]; then
+        ENABLE_CACHE=true
+      fi
+      test -s "$INIT_PATH"
+      EXTRA_ARGS=(
+        --wan-init-latent-path "$INIT_PATH"
+        --wan-refine-sigma "$REFINE_SIGMA"
+        --wan-refine-schedule "$REFINE_SCHEDULE"
+      )
+      ;;
+  esac
+
+  PERF_PATH="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}_perf.json"
+  OUTPUT_PATH="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}.mp4"
+  LOG_PATH="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}.log"
+
+  echo "Starting ${LABEL}"
+
+  sglang generate \
+    --model-path "$MODEL_PATH" \
+    --num-gpus "$NUM_GPUS" \
+    --sp-degree "$NUM_GPUS" \
+    --ulysses-degree "$ULYSSES_DEGREE" \
+    --ring-degree "$RING_DEGREE" \
+    --encoder-parallel replicate \
+    --cfg-parallel-size 1 \
+    --prompt "$PROMPT" \
+    --height "$HEIGHT" \
+    --width "$WIDTH" \
+    --num-frames "$NUM_FRAMES" \
+    --fps "$FPS" \
+    --num-inference-steps "$NUM_INFERENCE_STEPS" \
+    --seed "$SEED" \
+    --cfg-gate-step 1.0 \
+    --guidance-scale "$GUIDANCE_SCALE" \
+    --enable-cache-dit "$ENABLE_CACHE" \
+    "${EXTRA_ARGS[@]}" \
+    --save-output \
+    --output-file-path "$OUTPUT_PATH" \
+    --perf-dump-path "$PERF_PATH" 2>&1 | tee "$LOG_PATH"
+
+  append_perf_summary
+done
+
+echo "Experiment completed. Outputs: $OUTPUT_DIR"
