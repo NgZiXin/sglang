@@ -18,6 +18,10 @@ from sglang.multimodal_gen.runtime.pipelines_core.lora.pipeline import LoRAPipel
 from sglang.multimodal_gen.runtime.pipelines_core.stages import (
     InputValidationStage,
 )
+from sglang.multimodal_gen.runtime.pipelines_core.stages.model_specific_stages.wan_refinement import (
+    WanLatentExportStage,
+    WanRefinementPreparationStage,
+)
 from sglang.multimodal_gen.runtime.pipelines_core.stages.progressive_resolution.wan import (
     WanProgressiveDenoisingStage,
 )
@@ -50,7 +54,9 @@ class WanPipeline(LoRAPipeline, ComposedPipelineBase):
         self.add_standard_text_encoding_stage()
         self.add_standard_latent_preparation_stage()
         self.add_standard_timestep_preparation_stage()
+        self.add_stage(WanRefinementPreparationStage())
         self.add_progressive_denoising_stage(WanProgressiveDenoisingStage)
+        self.add_stage(WanLatentExportStage())
         self.add_standard_decoding_stage()
 
 

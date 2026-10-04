@@ -15,6 +15,10 @@ from sglang.multimodal_gen.runtime.pipelines_core.composed_pipeline_base import 
     ComposedPipelineBase,
 )
 from sglang.multimodal_gen.runtime.pipelines_core.lora.pipeline import LoRAPipeline
+from sglang.multimodal_gen.runtime.pipelines_core.stages.model_specific_stages.wan_refinement import (
+    WanLatentExportStage,
+    WanRefinementPreparationStage,
+)
 from sglang.multimodal_gen.runtime.server_args import ServerArgs
 
 # isort: off
@@ -54,6 +58,7 @@ class WanDMDPipeline(LoRAPipeline, ComposedPipelineBase):
             ]
         )
 
+        self.add_stage(WanRefinementPreparationStage(allow_refinement=False))
         self.add_standard_text_encoding_stage()
 
         self.add_standard_timestep_preparation_stage()
@@ -68,6 +73,7 @@ class WanDMDPipeline(LoRAPipeline, ComposedPipelineBase):
             ]
         )
 
+        self.add_stage(WanLatentExportStage())
         self.add_standard_decoding_stage()
 
 

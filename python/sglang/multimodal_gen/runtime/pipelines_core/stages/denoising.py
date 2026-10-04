@@ -1576,6 +1576,7 @@ class DenoisingStage(PipelineStage, RolloutDenoisingMixin):
     ) -> None:
         """Finalize the shared loop by handing state to post-denoising processing."""
         self._log_cfg_gate_summary(ctx, batch)
+        self._log_cache_dit_summary(ctx)
         self._post_denoising_loop(
             batch=batch,
             latents=ctx.latents,
@@ -1584,6 +1585,41 @@ class DenoisingStage(PipelineStage, RolloutDenoisingMixin):
             server_args=server_args,
             is_warmup=ctx.is_warmup,
         )
+
+    def _log_cache_dit_summary(self, ctx: DenoisingContext) -> None:
+        """Report request cache reuse, including cache warmup and forced refreshes."""
+        if (
+            not self._cache_dit_enabled
+            or ctx.is_warmup
+            or (world_group_is_initialized() and get_world_group().local_rank != 0)
+        ):
+            return
+
+        import cache_dit
+
+        for name in ("transformer", "transformer_2"):
+            transformer = getattr(self, name, None)
+            if transformer is None:
+                continue
+            target = getattr(transformer, "_sglang_cache_dit_adapter", transformer)
+            for index, stats in enumerate(cache_dit.summary(target, logging=False)):
+                calls = stats.accumulated_transformer_executed_steps
+                if not calls:
+                    continue
+                hits = (
+                    stats.accumulated_cached_steps + stats.cfg_accumulated_cached_steps
+                )
+                logger.info(
+                    "cache-dit summary: %s context=%d hits=%d calls=%d "
+                    "hit_rate=%.2f%% (cache=%d, cfg_cache=%d)",
+                    name,
+                    index,
+                    hits,
+                    calls,
+                    100.0 * hits / calls,
+                    stats.accumulated_cached_steps,
+                    stats.cfg_accumulated_cached_steps,
+                )
 
     def _log_cfg_gate_summary(self, ctx: DenoisingContext, batch: Req) -> None:
         state = ctx.extra.get("cfg_gate_state")

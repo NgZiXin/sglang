@@ -215,6 +215,13 @@ class SamplingParams:
     progressive_levels: int = 1
     progressive_delta: float = 0.01
 
+    # Offline Wan 2.1 draft/refinement experiments. Files contain normalized
+    # BCTHW final latents, not pixels or transformer activation caches.
+    wan_init_latent_path: str | None = None
+    wan_save_latent_path: str | None = None
+    wan_refine_sigma: float | None = None
+    wan_refine_schedule: str = "rescale"
+
     # LongCat-Image parameters
     enable_cfg_renorm: bool = False
     cfg_renorm_min: float = 0.0
@@ -465,6 +472,12 @@ class SamplingParams:
         """
         check if the sampling params is correct by itself
         """
+        from sglang.multimodal_gen.runtime.utils.wan_refinement import (
+            validate_refinement_options,
+        )
+
+        validate_refinement_options(self)
+
         if self.prompt_path and not self.prompt_path.endswith(".txt"):
             raise ValueError(
                 f"prompt_path must be a txt file, got {self.prompt_path!r}"
@@ -607,6 +620,11 @@ class SamplingParams:
         """
         check if the sampling params is compatible and valid with server_args
         """
+        from sglang.multimodal_gen.runtime.utils.wan_refinement import (
+            validate_refinement_options,
+        )
+
+        validate_refinement_options(self, type(pipeline_config).__name__)
         task_type = pipeline_config.task_type
         if task_type.is_action_gen():
             return
@@ -1043,6 +1061,29 @@ class SamplingParams:
             "--debug",
             action="store_true",
             help="",
+        )
+
+        # Offline Wan 2.1 draft/refinement experiments.
+        add_argument(
+            "--wan-save-latent-path",
+            type=str,
+            help="Export final normalized Wan/FastWan 2.1 latent before VAE decode.",
+        )
+        add_argument(
+            "--wan-init-latent-path",
+            type=str,
+            help="Refine an exported clean latent with base Wan 2.1 T2V.",
+        )
+        add_argument(
+            "--wan-refine-sigma",
+            type=float,
+            help="Starting flow noise sigma in (0,1]; requires --wan-init-latent-path.",
+        )
+        add_argument(
+            "--wan-refine-schedule",
+            choices=["rescale", "suffix"],
+            type=str,
+            help="rescale keeps requested step count; suffix keeps existing steps at or below sigma.",
         )
 
         # Progressive resolution growing (DCT spectral upsampling)
