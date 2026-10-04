@@ -5,7 +5,7 @@ set -euo pipefail
 
 : "${FASTWAN_MODEL_PATH:?Set FASTWAN_MODEL_PATH to your local FastWan 2.1 14B checkpoint}"
 BASE_MODEL="${BASE_MODEL:-Wan-AI/Wan2.1-T2V-14B-Diffusers}"
-OUTPUT_DIR="${OUTPUT_DIR:-outputs/wan_refinement}"
+OUTPUT_DIR="${OUTPUT_DIR:-outputs/week8/wan_refinement}"
 PROMPT="${PROMPT:-A red tram moves slowly through a sunlit city square}"
 SEED="${SEED:-42}"
 SIGMA="${SIGMA:-0.4}"

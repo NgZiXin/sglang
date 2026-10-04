@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Run from the repo root inside an active GPU allocation and SGLang environment.
-# Usage: FASTWAN_MODEL_PATH=/path/to/FastWan bash slurm/wan_refinement_smoke.sh
+# Usage: FASTWAN_MODEL_PATH=/path/to/FastWan bash slurm/week8/wan_refinement_smoke.sh
 set -euo pipefail
 
 : "${FASTWAN_MODEL_PATH:?Set FASTWAN_MODEL_PATH to your FastWan 2.1 14B checkpoint}"
 BASE_MODEL="${BASE_MODEL:-Wan-AI/Wan2.1-T2V-14B-Diffusers}"
-OUT="outputs/wan_refinement_smoke"
+OUT="outputs/week8/wan_refinement_smoke"
 mkdir -p "$OUT"
 
 COMMON=(--num-gpus 1 --height 480 --width 832 --num-frames 81 --fps 16
@@ -19,6 +19,7 @@ sglang generate "${COMMON[@]}" \
     --dmd-denoising-steps 1000,757,522 --guidance-scale 1 \
     --enable-cache-dit false \
     --wan-save-latent-path "$OUT/draft.pt" \
+    --perf-dump-path "$OUT/draft_perf.json" \
     --output-file-path "$OUT/draft.mp4" 2>&1 | tee "$OUT/draft.log"
 test -s "$OUT/draft.pt"
 
@@ -28,6 +29,7 @@ sglang generate "${COMMON[@]}" \
     --model-path "$BASE_MODEL" --num-inference-steps 50 --guidance-scale 5 \
     --wan-init-latent-path "$OUT/draft.pt" --wan-refine-sigma 0.4 \
     --enable-cache-dit true \
+    --perf-dump-path "$OUT/refined_perf.json" \
     --output-file-path "$OUT/refined.mp4" 2>&1 | tee "$OUT/refined.log"
 
-echo "Done. Videos and logs: $OUT"
+echo "Done. Videos, logs, and performance JSON: $OUT"

@@ -35,9 +35,9 @@ repository root:
 python python/sglang/multimodal_gen/test/unit/test_wan_refinement.py -v
 
 FASTWAN_MODEL_PATH="$SCRATCH/models/FastWan2.1-T2V-14B-Diffusers" \
-OUTPUT_DIR="$SCRATCH/sglang/outputs/refinement_seed42_sigma04" \
+OUTPUT_DIR="$SCRATCH/sglang/outputs/week8/refinement_seed42_sigma04" \
 SIGMA=0.4 SCHEDULE=rescale \
-bash slurm/wan_refinement_experiment.sh
+bash slurm/week8/wan_refinement_experiment.sh
 ```
 
 The runner uses the existing local FastWan checkpoint/`--model-id`/DMD pipeline
