@@ -61,7 +61,7 @@ sglang generate \
   --num-frames "$NUM_FRAMES" \
   --fps "$FPS" \
   --num-inference-steps "$NUM_INFERENCE_STEPS" \
-  --seed "$SEED" \
+  --seed 123 \
   --dmd-denoising-steps "$DMD_DENOISING_STEPS" \
   --enable-cache-dit false \
   --wan-save-latent-path "$DRAFT_PATH" \
