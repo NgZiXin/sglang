@@ -31,6 +31,9 @@ REFINE_STEPS=50
 REFINE_SIGMA=0.4
 DRAFT_PATH="$OUTPUT_DIR/${RUN_PREFIX}_draft.pt"
 
+# No limit on consecutive cache-dit hits.
+export SGLANG_CACHE_DIT_MC=-1
+
 setup_sglang_env
 
 # 1. Generate the FastWan draft and save its latent.
@@ -52,7 +55,6 @@ sglang generate \
   --ulysses-degree "$ULYSSES_DEGREE" \
   --ring-degree "$RING_DEGREE" \
   --encoder-parallel replicate \
-  --cfg-parallel-size 1 \
   --prompt "$PROMPT" \
   --height "$HEIGHT" \
   --width "$WIDTH" \
@@ -60,9 +62,7 @@ sglang generate \
   --fps "$FPS" \
   --num-inference-steps "$NUM_INFERENCE_STEPS" \
   --seed "$SEED" \
-  --cfg-gate-step 1.0 \
   --dmd-denoising-steps "$DMD_DENOISING_STEPS" \
-  --guidance-scale 1 \
   --enable-cache-dit false \
   --wan-save-latent-path "$DRAFT_PATH" \
   --save-output \
@@ -89,7 +89,6 @@ sglang generate \
   --ulysses-degree "$ULYSSES_DEGREE" \
   --ring-degree "$RING_DEGREE" \
   --encoder-parallel replicate \
-  --cfg-parallel-size 1 \
   --prompt "$PROMPT" \
   --height "$HEIGHT" \
   --width "$WIDTH" \
@@ -97,8 +96,6 @@ sglang generate \
   --fps "$FPS" \
   --num-inference-steps "$NUM_INFERENCE_STEPS" \
   --seed "$SEED" \
-  --cfg-gate-step 1.0 \
-  --guidance-scale 5 \
   --enable-cache-dit true \
   --wan-init-latent-path "$DRAFT_PATH" \
   --wan-refine-sigma "$REFINE_SIGMA" \
