@@ -28,7 +28,7 @@ ULYSSES_DEGREE=1
 RING_DEGREE=1
 DMD_DENOISING_STEPS="1000"
 REFINE_STEPS=50
-REFINE_SIGMA=1 # only retains 1 - refine_sigma of latent
+REFINE_SIGMA=0.75 # only retains 1 - refine_sigma of latent
 DRAFT_PATH="$OUTPUT_DIR/${RUN_PREFIX}_draft.pt"
 
 # No limit on consecutive cache-dit hits.
@@ -96,7 +96,7 @@ sglang generate \
   --fps "$FPS" \
   --num-inference-steps "$NUM_INFERENCE_STEPS" \
   --seed "$SEED" \
-  --enable-cache-dit true \
+  --enable-cache-dit false \
   --wan-init-latent-path "$DRAFT_PATH" \
   --wan-refine-sigma "$REFINE_SIGMA" \
   --save-output \
