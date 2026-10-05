@@ -28,7 +28,7 @@ ULYSSES_DEGREE=1
 RING_DEGREE=1
 DMD_DENOISING_STEPS="1000,757,522"
 REFINE_STEPS=50
-REFINE_SIGMA=0.4
+REFINE_SIGMA=0.75 # only retains 1 - refine_sigma of latent
 DRAFT_PATH="$OUTPUT_DIR/${RUN_PREFIX}_draft.pt"
 
 # No limit on consecutive cache-dit hits.
