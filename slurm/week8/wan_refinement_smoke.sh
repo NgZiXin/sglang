@@ -26,7 +26,7 @@ SEED=42
 NUM_GPUS=1
 ULYSSES_DEGREE=1
 RING_DEGREE=1
-DMD_DENOISING_STEPS="1000,757,522"
+DMD_DENOISING_STEPS="1000"
 REFINE_STEPS=50
 REFINE_SIGMA=0.75 # only retains 1 - refine_sigma of latent
 DRAFT_PATH="$OUTPUT_DIR/${RUN_PREFIX}_draft.pt"
@@ -39,7 +39,7 @@ setup_sglang_env
 # 1. Generate the FastWan draft and save its latent.
 LABEL="draft"
 RUN_ID=1
-NUM_INFERENCE_STEPS=3
+NUM_INFERENCE_STEPS=1
 PERF_PATH="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}_perf.json"
 OUTPUT_PATH="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}.mp4"
 LOG_PATH="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}.log"
@@ -61,7 +61,7 @@ sglang generate \
   --num-frames "$NUM_FRAMES" \
   --fps "$FPS" \
   --num-inference-steps "$NUM_INFERENCE_STEPS" \
-  --seed 123 \
+  --seed "$SEED" \
   --dmd-denoising-steps "$DMD_DENOISING_STEPS" \
   --enable-cache-dit false \
   --wan-save-latent-path "$DRAFT_PATH" \
