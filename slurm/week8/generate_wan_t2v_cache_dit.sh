@@ -21,7 +21,7 @@ HEIGHT=480
 WIDTH=832
 NUM_FRAMES=81
 FPS=16
-NUM_INFERENCE_STEPS=25
+NUM_INFERENCE_STEPS=50
 SEED=42
 REPEATS=1
 
@@ -31,6 +31,7 @@ RUN_CONFIGS=(
 )
 
 # Fixed cache settings
+export CACHE_DIT_LOG_LEVEL=DEBUG
 export SGLANG_CACHE_DIT_FN=1
 export SGLANG_CACHE_DIT_BN=0
 export SGLANG_CACHE_DIT_WARMUP=4
@@ -67,7 +68,7 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
       --fps "$FPS" \
       --num-inference-steps "$NUM_INFERENCE_STEPS" \
       --seed "$SEED" \
-      --enable-cache-dit false \
+      --enable-cache-dit true \
       --save-output \
       --perf-dump-path "$PERF_PATH" \
       --output-file-path "$OUTPUT_PATH" 2>&1 | tee "$LOG_PATH"
