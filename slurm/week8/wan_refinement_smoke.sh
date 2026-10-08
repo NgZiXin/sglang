@@ -33,6 +33,7 @@ DRAFT_PATH="$OUTPUT_DIR/${RUN_PREFIX}_draft.pt"
 
 # No limit on consecutive cache-dit hits.
 export SGLANG_CACHE_DIT_MC=-1
+export SGLANG_CACHE_DIT_WARMUP=1
 
 setup_sglang_env
 
