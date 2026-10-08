@@ -214,6 +214,7 @@ class PipelineConfig:
     cfg_policy: CFGPolicy = field(default_factory=CFGPolicy)
     generator_device: str | None = None
     flow_shift: float | None = None
+    wan_timestep_schedule: int = 0
     scheduler_class_override: str | None = None
     disable_autocast: bool = False
 
@@ -773,6 +774,14 @@ class PipelineConfig:
             dest=f"{prefix_with_dot.replace('-', '_')}flow_shift",
             default=PipelineConfig.flow_shift,
             help="Flow shift parameter",
+        )
+        parser.add_argument(
+            f"--{prefix_with_dot}wan-timestep-schedule",
+            type=int,
+            choices=(0, 1),
+            dest=f"{prefix_with_dot.replace('-', '_')}wan_timestep_schedule",
+            default=PipelineConfig.wan_timestep_schedule,
+            help="Wan 2.1 T2V schedule: 0 = original flow shift, 1 = early-fine (bypasses flow shift)",
         )
         parser.add_argument(
             f"--{prefix_with_dot}scheduler-class-override",

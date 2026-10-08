@@ -72,6 +72,9 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin, BaseScheduler):
         final_sigmas_type (`str`, defaults to `"zero"`):
             The final `sigma` value for the noise schedule during the sampling process. If `"sigma_min"`, the final
             sigma is the same as the last sigma in the training schedule. If `zero`, the final sigma is set to 0.
+        timestep_schedule (`int`, defaults to `0`):
+            0 uses the original flow shift; 1 uses early-fine with small gaps at both endpoints,
+            prioritizing the noisy starting region and bypassing flow shift for generated sigmas.
     """
 
     _compatibles = [e.name for e in KarrasDiffusionSchedulers]
@@ -96,8 +99,19 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin, BaseScheduler):
         timestep_spacing: str = "linspace",
         steps_offset: int = 0,
         final_sigmas_type: str | None = "zero",  # "zero", "sigma_min"
+        timestep_schedule: int = 0,
         **kwargs,
     ):
+
+        if timestep_schedule not in (0, 1):
+            raise ValueError("timestep_schedule must be 0 (original) or 1 (early-fine)")
+        if timestep_schedule == 1 and (
+            use_dynamic_shifting or solver_p is not None or final_sigmas_type != "zero"
+        ):
+            raise ValueError(
+                "early-fine requires static scheduling, the native UniPC solver, "
+                "and final_sigmas_type=zero"
+            )
 
         if solver_type not in ["bh1", "bh2"]:
             if solver_type in ["midpoint", "heun", "logrho"]:
@@ -190,7 +204,18 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin, BaseScheduler):
                 " you have to pass a value for `mu` when `use_dynamic_shifting` is set to be `True`"
             )
 
-        if sigmas is None:
+        use_early_fine = self.config.timestep_schedule == 1 and sigmas is None
+        if use_early_fine:
+            if num_inference_steps is None or num_inference_steps < 1:
+                raise ValueError("early-fine requires a positive num_inference_steps")
+            blend = 0.5
+            progress = np.linspace(0.0, 1.0, num_inference_steps + 1)[:-1]
+            # 1 - 4*p**3 + 3*p**4: small endpoint gaps, smaller at the start.
+            shaped = (1 - progress) ** 2 * (1 + 2 * progress + 3 * progress**2)
+            # Keep sigma below one so UniPC's log(1 - sigma) stays finite.
+            sigma_max = 1.0 - 1.0 / self.config.num_train_timesteps
+            sigmas = sigma_max * ((1 - blend) * (1 - progress) + blend * shaped)
+        elif sigmas is None:
             assert num_inference_steps is not None
             sigmas = np.linspace(
                 self.sigma_max, self.sigma_min, num_inference_steps + 1
@@ -201,7 +226,7 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin, BaseScheduler):
         if self.config.use_dynamic_shifting:
             assert mu is not None
             sigmas = self.time_shift(mu, 1.0, sigmas)  # pyright: ignore
-        else:
+        elif not use_early_fine:
             if shift is None:
                 shift = self.config.shift
             assert isinstance(sigmas, np.ndarray)
@@ -217,6 +242,11 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin, BaseScheduler):
             )
 
         timesteps = sigmas * self.config.num_train_timesteps
+        if use_early_fine and np.any(np.diff(timesteps.astype(np.int64)) >= 0):
+            raise ValueError(
+                "early-fine produced duplicate integer timesteps; reduce "
+                "num_inference_steps"
+            )
         sigmas = np.concatenate([sigmas, [sigma_last]]).astype(
             np.float32
         )  # pyright: ignore

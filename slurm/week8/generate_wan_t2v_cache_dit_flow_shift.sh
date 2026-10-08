@@ -12,8 +12,9 @@ set -euo pipefail
 source "$HOME/cp4101/sglang/slurm/common.sh"
 
 OUTPUT_DIR="$SCRATCH/sglang/outputs/week8/flow-shift"
-FLOW_SHIFT=7 # default is 5
-RUN_PREFIX="wan_t2v_flow_shift_${FLOW_SHIFT}_${SLURM_JOB_ID:-manual}"
+FLOW_SHIFT=7 # Used only when WAN_TIMESTEP_SCHEDULE=0; model default is 5.
+WAN_TIMESTEP_SCHEDULE=1 # 0 = original flow shift, 1 = early-fine.
+RUN_PREFIX="wan_t2v_schedule_${WAN_TIMESTEP_SCHEDULE}_flow_shift_${FLOW_SHIFT}_${SLURM_JOB_ID:-manual}"
 SUMMARY_CSV="$OUTPUT_DIR/${RUN_PREFIX}_summary.csv"
 
 MODEL_PATH="Wan-AI/Wan2.1-T2V-14B-Diffusers"
@@ -73,8 +74,9 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
       --fps "$FPS" \
       --num-inference-steps "$NUM_INFERENCE_STEPS" \
       --flow-shift "$FLOW_SHIFT" \
+      --wan-timestep-schedule "$WAN_TIMESTEP_SCHEDULE" \
       --seed "$SEED" \
-      --enable-cache-dit true \
+      --enable-cache-dit false \
       --save-output \
       --perf-dump-path "$PERF_PATH" \
       --output-file-path "$OUTPUT_PATH" 2>&1 | tee "$LOG_PATH"

@@ -46,7 +46,8 @@ class WanPipeline(LoRAPipeline, ComposedPipelineBase):
     def initialize_pipeline(self, server_args: ServerArgs):
         # We use UniPCMScheduler from Wan2.1 official repo, not the one in diffusers.
         self.modules["scheduler"] = FlowUniPCMultistepScheduler(
-            shift=server_args.pipeline_config.flow_shift
+            shift=server_args.pipeline_config.flow_shift,
+            timestep_schedule=server_args.pipeline_config.wan_timestep_schedule,
         )
 
     def create_pipeline_stages(self, server_args: ServerArgs) -> None:
