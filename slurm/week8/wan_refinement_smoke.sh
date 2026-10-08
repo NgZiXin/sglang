@@ -11,7 +11,7 @@ set -euo pipefail
 
 source "$HOME/cp4101/sglang/slurm/common.sh"
 
-OUTPUT_DIR="$SCRATCH/sglang/outputs/week8/wan_refinement_smoke"
+OUTPUT_DIR="$SCRATCH/sglang/outputs/week8/wan_refinement_smoke_2"
 RUN_PREFIX="wan_refinement_smoke_${SLURM_JOB_ID:-manual}"
 SUMMARY_CSV="$OUTPUT_DIR/${RUN_PREFIX}_summary.csv"
 
@@ -28,7 +28,7 @@ ULYSSES_DEGREE=1
 RING_DEGREE=1
 DMD_DENOISING_STEPS="1000"
 REFINE_STEPS=50
-REFINE_SIGMA=0.75 # only retains 1 - refine_sigma of latent
+REFINE_SIGMA=0.90 # only retains 1 - refine_sigma of latent
 DRAFT_PATH="$OUTPUT_DIR/${RUN_PREFIX}_draft.pt"
 
 # No limit on consecutive cache-dit hits.
