@@ -96,7 +96,7 @@ sglang generate \
   --fps "$FPS" \
   --num-inference-steps "$NUM_INFERENCE_STEPS" \
   --seed "$SEED" \
-  --enable-cache-dit false \
+  --enable-cache-dit true \
   --wan-init-latent-path "$DRAFT_PATH" \
   --wan-refine-sigma "$REFINE_SIGMA" \
   --save-output \
