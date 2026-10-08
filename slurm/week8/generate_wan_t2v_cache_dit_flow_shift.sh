@@ -70,7 +70,7 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
       --num-inference-steps "$NUM_INFERENCE_STEPS" \
       --flow-shift "$FLOW_SHIFT" \
       --seed "$SEED" \
-      --enable-cache-dit false \
+      --enable-cache-dit true \
       --save-output \
       --perf-dump-path "$PERF_PATH" \
       --output-file-path "$OUTPUT_PATH" 2>&1 | tee "$LOG_PATH"
