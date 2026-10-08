@@ -11,7 +11,7 @@ set -euo pipefail
 
 source "$HOME/cp4101/sglang/slurm/common.sh"
 
-OUTPUT_DIR="$SCRATCH/sglang/outputs/cache-dit"
+OUTPUT_DIR="$SCRATCH/sglang/outputs/week8/cache-dit"
 RUN_PREFIX="wan_t2v_${SLURM_JOB_ID:-manual}"
 SUMMARY_CSV="$OUTPUT_DIR/${RUN_PREFIX}_summary.csv"
 
