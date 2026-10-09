@@ -12,7 +12,7 @@ set -euo pipefail
 source "$HOME/cp4101/sglang/slurm/common.sh"
 
 OUTPUT_DIR="$SCRATCH/sglang/outputs/week8/flow-shift"
-FLOW_SHIFT=7 # Used only when WAN_TIMESTEP_SCHEDULE=0; model default is 5.
+FLOW_SHIFT=5 # Used only when WAN_TIMESTEP_SCHEDULE=0; model default is 5.
 WAN_TIMESTEP_SCHEDULE=0 # 0 = original flow shift, 1 = early-fine.
 RUN_PREFIX="wan_t2v_schedule_${WAN_TIMESTEP_SCHEDULE}_flow_shift_${FLOW_SHIFT}_${SLURM_JOB_ID:-manual}"
 SUMMARY_CSV="$OUTPUT_DIR/${RUN_PREFIX}_summary.csv"
