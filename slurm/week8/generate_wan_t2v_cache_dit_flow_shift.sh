@@ -45,9 +45,9 @@ export SGLANG_CACHE_DIT_SCM_PRESET=none
 export SGLANG_CACHE_DIT_SCM_POLICY=dynamic
 
 # Cache mask
-CACHE_DIT_RECOMPUTE_LAST_STEPS=5
-export SGLANG_CACHE_DIT_SCM_COMPUTE_BINS="${SGLANG_CACHE_DIT_WARMUP},${CACHE_DIT_RECOMPUTE_LAST_STEPS}"
-export SGLANG_CACHE_DIT_SCM_CACHE_BINS="$((NUM_INFERENCE_STEPS - SGLANG_CACHE_DIT_WARMUP - CACHE_DIT_RECOMPUTE_LAST_STEPS)),0"
+# CACHE_DIT_RECOMPUTE_LAST_STEPS=5
+# export SGLANG_CACHE_DIT_SCM_COMPUTE_BINS="${SGLANG_CACHE_DIT_WARMUP},${CACHE_DIT_RECOMPUTE_LAST_STEPS}"
+# export SGLANG_CACHE_DIT_SCM_CACHE_BINS="$((NUM_INFERENCE_STEPS - SGLANG_CACHE_DIT_WARMUP - CACHE_DIT_RECOMPUTE_LAST_STEPS)),0"
 
 setup_sglang_env
 
@@ -76,7 +76,7 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
       --flow-shift "$FLOW_SHIFT" \
       --wan-timestep-schedule "$WAN_TIMESTEP_SCHEDULE" \
       --seed "$SEED" \
-      --enable-cache-dit false \
+      --enable-cache-dit true \
       --save-output \
       --perf-dump-path "$PERF_PATH" \
       --output-file-path "$OUTPUT_PATH" 2>&1 | tee "$LOG_PATH"
