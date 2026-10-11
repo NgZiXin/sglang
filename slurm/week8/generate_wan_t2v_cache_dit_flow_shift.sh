@@ -38,7 +38,7 @@ export SGLANG_CACHE_DIT_FN=1
 export SGLANG_CACHE_DIT_BN=0
 export SGLANG_CACHE_DIT_WARMUP=4
 export SGLANG_CACHE_DIT_MC=-1
-export SGLANG_CACHE_DIT_RDT=0.48
+export SGLANG_CACHE_DIT_RDT=0.24
 export SGLANG_CACHE_DIT_TAYLORSEER=false
 export SGLANG_CACHE_DIT_TS_ORDER=1
 export SGLANG_CACHE_DIT_SCM_PRESET=none
@@ -76,7 +76,7 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
       --flow-shift "$FLOW_SHIFT" \
       --wan-timestep-schedule "$WAN_TIMESTEP_SCHEDULE" \
       --seed "$SEED" \
-      --enable-cache-dit true \
+      --enable-cache-dit false \
       --save-output \
       --perf-dump-path "$PERF_PATH" \
       --output-file-path "$OUTPUT_PATH" 2>&1 | tee "$LOG_PATH"
