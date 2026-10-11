@@ -76,7 +76,7 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
       --flow-shift "$FLOW_SHIFT" \
       --wan-timestep-schedule "$WAN_TIMESTEP_SCHEDULE" \
       --seed "$SEED" \
-      --enable-cache-dit false \
+      --enable-cache-dit true \
       --save-output \
       --perf-dump-path "$PERF_PATH" \
       --output-file-path "$OUTPUT_PATH" 2>&1 | tee "$LOG_PATH"
