@@ -12,9 +12,10 @@ set -euo pipefail
 # Paths: change the environment path here if you installed elsewhere.
 export SCRATCH="/mnt/scratch/n/$USER"
 source "$SCRATCH/vbench/bin/activate"
+export TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1
 
 VIDEO_DIR="$SCRATCH/sglang/outputs/week8/flow-shift"
-RESULT_DIR="$SCRATCH/sglang/outputs/week8/vbench"
+RESULT_DIR="$SCRATCH/sglang/outputs/week8/vbench/vbench_${SLURM_JOB_ID}"
 
 # Evaluate the folder, then combine individual video scores into one CSV.
 python - "$VIDEO_DIR" "$RESULT_DIR" <<'PY'
