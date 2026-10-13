@@ -4,7 +4,7 @@
 #SBATCH --gpus=h100-96
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
-#SBATCH --time=08:00:00
+#SBATCH --time=04:00:00
 #SBATCH --output=wan-t2v-%j.out
 
 set -euo pipefail
@@ -53,6 +53,7 @@ PY
 while IFS=$'\t' read -r LABEL PROMPT SEED SAMPLE_INDEX; do
   FILE_NAME="${LABEL}_seed${SEED}"
   PERF_PATH="$RUN_DIR/perf/$FILE_NAME.json"
+  GENERATED_VIDEO="$RUN_DIR/videos/$FILE_NAME.mp4"
   VIDEO_PATH="$RUN_DIR/videos/${PROMPT}-${SAMPLE_INDEX}.mp4" # VBench filename format.
 
   echo "Generating ${LABEL}, seed=${SEED}: ${PROMPT}"
@@ -74,8 +75,13 @@ while IFS=$'\t' read -r LABEL PROMPT SEED SAMPLE_INDEX; do
     --enable-cache-dit false \
     --save-output \
     --perf-dump-path "$PERF_PATH" \
-    --output-file-path "$VIDEO_PATH" 2>&1 | tee "$RUN_DIR/logs/$FILE_NAME.log"
-  test -s "$VIDEO_PATH"
+    --output-file-path "$GENERATED_VIDEO" 2>&1 | tee "$RUN_DIR/logs/$FILE_NAME.log"
+  if ! test -s "$GENERATED_VIDEO"; then
+    echo "ERROR: Generated video is missing or empty: $GENERATED_VIDEO" >&2
+    exit 1
+  fi  
+  # Rename after saving because SGLang replaces spaces and punctuation.
+  mv "$GENERATED_VIDEO" "$VIDEO_PATH"
   append_perf_summary
 done <<< "$PROMPTS"
 
