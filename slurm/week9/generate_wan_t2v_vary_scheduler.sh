@@ -13,7 +13,7 @@ source "$HOME/cp4101/sglang/slurm/common.sh"
 
 # Scheduler params
 FLOW_SHIFT=5 # Model default; sets the range before Beta sampling.
-WAN_TIMESTEP_SCHEDULE=2 # 0=flow shift, 1=early-fine, 2=Beta(0.6, 0.6).
+WAN_TIMESTEP_SCHEDULE=0 # 0=flow shift, 1=early-fine, 2=Beta(0.6, 0.6).
 
 OUTPUT_DIR="$SCRATCH/sglang/outputs/week9/beta-sampling"
 RUN_DIR="$OUTPUT_DIR/schedule_${WAN_TIMESTEP_SCHEDULE}_shift_${FLOW_SHIFT}_${SLURM_JOB_ID}"
@@ -26,7 +26,7 @@ HEIGHT=480
 WIDTH=832
 NUM_FRAMES=81
 FPS=16
-NUM_INFERENCE_STEPS=50
+NUM_INFERENCE_STEPS=1
 NUM_GPUS=1
 ULYSSES_DEGREE=1
 RING_DEGREE=1
