@@ -1,0 +1,135 @@
+{
+  "seed": 42,
+  "sample_index": 0,
+  "prompts": [
+    {
+      "prompt_id": "p01_subject_consistency",
+      "group": "subject_consistency",
+      "prompt_en": "a horse galloping across an open field",
+      "dimension": [
+        "subject_consistency",
+        "motion_smoothness",
+        "dynamic_degree"
+      ]
+    },
+    {
+      "prompt_id": "p02_scene",
+      "group": "scene",
+      "prompt_en": "underwater coral reef",
+      "dimension": [
+        "scene",
+        "background_consistency"
+      ],
+      "auxiliary_info": {
+        "scene": {
+          "scene": {
+            "scene": "underwater coral reef"
+          }
+        }
+      }
+    },
+    {
+      "prompt_id": "p03_temporal_flickering",
+      "group": "temporal_flickering",
+      "prompt_en": "In a still frame, a stop sign",
+      "dimension": [
+        "temporal_flickering"
+      ]
+    },
+    {
+      "prompt_id": "p04_object_class",
+      "group": "object_class",
+      "prompt_en": "an elephant",
+      "dimension": [
+        "object_class"
+      ],
+      "auxiliary_info": {
+        "object_class": {
+          "object": "elephant"
+        }
+      }
+    },
+    {
+      "prompt_id": "p05_multiple_objects",
+      "group": "multiple_objects",
+      "prompt_en": "a cat and a dog",
+      "dimension": [
+        "multiple_objects"
+      ],
+      "auxiliary_info": {
+        "multiple_objects": {
+          "object": "cat and dog"
+        }
+      }
+    },
+    {
+      "prompt_id": "p06_human_action",
+      "group": "human_action",
+      "prompt_en": "A person is playing piano",
+      "dimension": [
+        "human_action"
+      ]
+    },
+    {
+      "prompt_id": "p07_color",
+      "group": "color",
+      "prompt_en": "a red car",
+      "dimension": [
+        "color"
+      ],
+      "auxiliary_info": {
+        "color": {
+          "color": "red"
+        }
+      }
+    },
+    {
+      "prompt_id": "p08_spatial_relationship",
+      "group": "spatial_relationship",
+      "prompt_en": "a bicycle on the left of a car, front view",
+      "dimension": [
+        "spatial_relationship"
+      ],
+      "auxiliary_info": {
+        "spatial_relationship": {
+          "spatial_relationship": {
+            "object_a": "bicycle",
+            "object_b": "car",
+            "relationship": "on the left of"
+          }
+        }
+      }
+    },
+    {
+      "prompt_id": "p09_appearance_style",
+      "group": "appearance_style",
+      "prompt_en": "The bund Shanghai, Van Gogh style",
+      "dimension": [
+        "appearance_style"
+      ],
+      "auxiliary_info": {
+        "appearance_style": {
+          "appearance_style": "Van Gogh style"
+        }
+      }
+    },
+    {
+      "prompt_id": "p10_temporal_style",
+      "group": "temporal_style",
+      "prompt_en": "The bund Shanghai, pan left",
+      "dimension": [
+        "temporal_style"
+      ]
+    },
+    {
+      "prompt_id": "p11_overall_consistency",
+      "group": "overall_consistency",
+      "prompt_en": "A panda drinking coffee in a cafe in Paris",
+      "dimension": [
+        "overall_consistency",
+        "aesthetic_quality",
+        "imaging_quality"
+      ]
+    }
+  ]
+}

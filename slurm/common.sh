@@ -43,3 +43,10 @@ append_perf_summary() {
     "$NUM_INFERENCE_STEPS" \
     "$SLURM_JOB_NODELIST"
 }
+
+# Use a subshell so evaluation does not replace the generation environment.
+run_vbench_evaluation() (
+  source "$SCRATCH/vbench/bin/activate"
+  export TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1
+  python "$REPO_DIR/slurm/vbench_eval.py" "$@"
+)
