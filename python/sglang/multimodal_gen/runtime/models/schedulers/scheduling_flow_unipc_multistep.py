@@ -9,6 +9,7 @@ import math
 from typing import Any
 
 import numpy as np
+import scipy.stats
 import torch
 from diffusers.configuration_utils import ConfigMixin, register_to_config
 from diffusers.schedulers.scheduling_utils import (
@@ -75,6 +76,7 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin, BaseScheduler):
         timestep_schedule (`int`, defaults to `0`):
             0 uses the original flow shift; 1 uses early-fine with small gaps at both endpoints,
             prioritizing the noisy starting region and bypassing flow shift for generated sigmas.
+            2 uses Beta(0.6, 0.6) quantiles over the original shifted sigma range.
     """
 
     _compatibles = [e.name for e in KarrasDiffusionSchedulers]
@@ -103,13 +105,15 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin, BaseScheduler):
         **kwargs,
     ):
 
-        if timestep_schedule not in (0, 1):
-            raise ValueError("timestep_schedule must be 0 (original) or 1 (early-fine)")
-        if timestep_schedule == 1 and (
+        if timestep_schedule not in (0, 1, 2):
+            raise ValueError(
+                "timestep_schedule must be 0 (original), 1 (early-fine), or 2 (beta)"
+            )
+        if timestep_schedule in (1, 2) and (
             use_dynamic_shifting or solver_p is not None or final_sigmas_type != "zero"
         ):
             raise ValueError(
-                "early-fine requires static scheduling, the native UniPC solver, "
+                "early-fine and beta require static scheduling, the native UniPC solver, "
                 "and final_sigmas_type=zero"
             )
 
@@ -205,6 +209,9 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin, BaseScheduler):
             )
 
         use_early_fine = self.config.timestep_schedule == 1 and sigmas is None
+        use_beta = self.config.timestep_schedule == 2 and sigmas is None
+        if use_beta and (num_inference_steps is None or num_inference_steps < 1):
+            raise ValueError("beta requires a positive num_inference_steps")
         if use_early_fine:
             if num_inference_steps is None or num_inference_steps < 1:
                 raise ValueError("early-fine requires a positive num_inference_steps")
@@ -232,6 +239,25 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin, BaseScheduler):
             assert isinstance(sigmas, np.ndarray)
             sigmas = shift * sigmas / (1 + (shift - 1) * sigmas)  # pyright: ignore
 
+        if use_beta:
+            # "Beta Sampling is All You Need" (arXiv:2407.12173).
+            # Redistribute after shifting, matching FlowMatchEuler's beta conversion.
+            # The last evaluation stays above zero; append the terminal zero below.
+            quantiles = scipy.stats.beta.ppf(
+                1 - np.linspace(0, 1, num_inference_steps), 0.6, 0.6
+            )
+            sigmas = sigmas[-1] + (sigmas[0] - sigmas[-1]) * quantiles
+            sigmas = sigmas.astype(np.float32)
+            if (
+                np.any(sigmas <= 0)
+                or np.any(sigmas >= 1)
+                or np.any(np.diff(sigmas) >= 0)
+            ):
+                raise ValueError(
+                    "beta requires distinct descending sigmas between zero and one; "
+                    "reduce num_inference_steps or adjust flow shift"
+                )
+
         if self.config.final_sigmas_type == "sigma_min":
             sigma_last = sigmas[-1]
         elif self.config.final_sigmas_type == "zero":
@@ -253,7 +279,9 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin, BaseScheduler):
 
         self.sigmas = torch.from_numpy(sigmas).to(device=device)
         self.timesteps = torch.from_numpy(timesteps).to(
-            device=device, dtype=torch.int64
+            # Beta endpoint spacing can be less than one training timestep.
+            # Preserve fractional timesteps to avoid duplicate lookup indices.
+            device=device, dtype=torch.float32 if use_beta else torch.int64
         )
 
         self.num_inference_steps = len(timesteps)

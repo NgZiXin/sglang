@@ -778,10 +778,10 @@ class PipelineConfig:
         parser.add_argument(
             f"--{prefix_with_dot}wan-timestep-schedule",
             type=int,
-            choices=(0, 1),
+            choices=(0, 1, 2),
             dest=f"{prefix_with_dot.replace('-', '_')}wan_timestep_schedule",
             default=PipelineConfig.wan_timestep_schedule,
-            help="Wan 2.1 T2V schedule: 0 = original flow shift, 1 = early-fine (bypasses flow shift)",
+            help="Wan 2.1 T2V schedule: 0 = original flow shift, 1 = early-fine (bypasses flow shift), 2 = beta (0.6, 0.6) over the shifted sigma range",
         )
         parser.add_argument(
             f"--{prefix_with_dot}scheduler-class-override",
