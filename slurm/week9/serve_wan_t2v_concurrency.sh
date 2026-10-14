@@ -12,7 +12,7 @@ set -euo pipefail
 source "$HOME/cp4101/sglang/slurm/common.sh"
 
 OUTPUT_DIR="$SCRATCH/sglang/outputs/week9/serving-concurrency"
-MODEL_PATH="Wan-AI/Wan2.1-T2V-14B-Diffusers"
+MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
 HEIGHT=480
 WIDTH=832
 NUM_FRAMES=81
