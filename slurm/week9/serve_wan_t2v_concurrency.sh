@@ -41,7 +41,12 @@ sglang serve \
   --model-path "$MODEL_PATH" \
   --num-gpus 1 \
   --host 127.0.0.1 \
-  --port "$PORT" > "$RUN_DIR/server.log" 2>&1 &
+  --port "$PORT" \
+  --batching-mode dynamic \
+  --batching-max-size 3 \
+  --batching-delay-ms 5 \
+  --enable-batching-metrics \
+  > "$RUN_DIR/server.log" 2>&1 &
 SERVER_PID=$!
 
 # Stop the server even if a benchmark fails.
