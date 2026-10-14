@@ -2,22 +2,23 @@
 #SBATCH --job-name=wan-refinement-smoke
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:h100-96:1
-#SBATCH --cpus-per-task=16
+#SBATCH --cpus-per-task=8
 #SBATCH --mem=192G
-#SBATCH --time=04:00:00
+#SBATCH --time=00:45:00
 #SBATCH --output=wan-refinement-smoke-%j.out
 
 set -euo pipefail
 
 source "$HOME/cp4101/sglang/slurm/common.sh"
 
-OUTPUT_DIR="$SCRATCH/sglang/outputs/week8/wan_refinement_smoke_2"
+OUTPUT_DIR="$SCRATCH/sglang/outputs/week9/wan_refinement_smoke"
 RUN_PREFIX="wan_refinement_smoke_${SLURM_JOB_ID:-manual}"
 SUMMARY_CSV="$OUTPUT_DIR/${RUN_PREFIX}_summary.csv"
 
 FASTWAN_MODEL_PATH="$SCRATCH/models/FastWan2.1-T2V-14B-Diffusers"
 MODEL_ID="Wan-AI/Wan2.1-T2V-14B-Diffusers"
-PROMPT="A red tram moves slowly through a sunlit city square"
+FASTWAN_PROMPT="A sunlit city square"
+WAN_PROMPT="The red tram moves slowly through a sunlit city square"
 HEIGHT=480
 WIDTH=832
 NUM_FRAMES=81
@@ -26,9 +27,9 @@ SEED=42
 NUM_GPUS=1
 ULYSSES_DEGREE=1
 RING_DEGREE=1
-DMD_DENOISING_STEPS="1000"
+DMD_DENOISING_STEPS="1000,757,522"
 REFINE_STEPS=50
-REFINE_SIGMA=0.90 # only retains 1 - refine_sigma of latent
+REFINE_SIGMA=0.75 # only retains 1 - refine_sigma of latent
 DRAFT_PATH="$OUTPUT_DIR/${RUN_PREFIX}_draft.pt"
 
 # No limit on consecutive cache-dit hits.
@@ -56,7 +57,7 @@ sglang generate \
   --ulysses-degree "$ULYSSES_DEGREE" \
   --ring-degree "$RING_DEGREE" \
   --encoder-parallel replicate \
-  --prompt "$PROMPT" \
+  --prompt "$FASTWAN_PROMPT" \
   --height "$HEIGHT" \
   --width "$WIDTH" \
   --num-frames "$NUM_FRAMES" \
@@ -90,7 +91,7 @@ sglang generate \
   --ulysses-degree "$ULYSSES_DEGREE" \
   --ring-degree "$RING_DEGREE" \
   --encoder-parallel replicate \
-  --prompt "$PROMPT" \
+  --prompt "$WAN_PROMPT" \
   --height "$HEIGHT" \
   --width "$WIDTH" \
   --num-frames "$NUM_FRAMES" \
