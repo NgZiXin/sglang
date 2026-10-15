@@ -4,7 +4,7 @@
 #SBATCH --gpus=h100-96
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
-#SBATCH --time=12:00:00
+#SBATCH --time=10:00:00
 #SBATCH --output=wan-t2v-%j.out
 
 set -euo pipefail
@@ -28,7 +28,7 @@ RING_DEGREE=1
 
 setup_sglang_env
 
-for NUM_INFERENCE_STEPS in 20 30 40 60; do
+for NUM_INFERENCE_STEPS in 20 30 40 50 60; do
 for WAN_TIMESTEP_SCHEDULE in 3; do # 0=flow shift, 1=early-fine, 2=Beta(0.6, 0.6), 3=Beta(0.6, 0.4).
 RUN_DIR="$OUTPUT_DIR/steps_${NUM_INFERENCE_STEPS}_schedule_${WAN_TIMESTEP_SCHEDULE}_shift_${FLOW_SHIFT}_${SLURM_JOB_ID}"
 PROMPT_MANIFEST="$RUN_DIR/prompts.json"
