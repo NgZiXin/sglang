@@ -28,15 +28,8 @@ RING_DEGREE=1
 
 setup_sglang_env
 
-# for NUM_INFERENCE_STEPS in 20 30 40 60; do
-# for WAN_TIMESTEP_SCHEDULE in 0 1 2; do # 0=flow shift, 1=early-fine, 2=Beta(0.6, 0.6).
-for NUM_INFERENCE_STEPS in 40 60; do
-  if [[ "$NUM_INFERENCE_STEPS" -eq 40 ]]; then
-    WAN_TIMESTEP_SCHEDULES=(2)
-  else
-    WAN_TIMESTEP_SCHEDULES=(0 1 2)
-  fi
-for WAN_TIMESTEP_SCHEDULE in "${WAN_TIMESTEP_SCHEDULES[@]}"; do # 0=flow shift, 1=early-fine, 2=Beta(0.6, 0.6).
+for NUM_INFERENCE_STEPS in 20 30 40 60; do
+for WAN_TIMESTEP_SCHEDULE in 3; do # 0=flow shift, 1=early-fine, 2=Beta(0.6, 0.6), 3=Beta(0.6, 0.4).
 RUN_DIR="$OUTPUT_DIR/steps_${NUM_INFERENCE_STEPS}_schedule_${WAN_TIMESTEP_SCHEDULE}_shift_${FLOW_SHIFT}_${SLURM_JOB_ID}"
 PROMPT_MANIFEST="$RUN_DIR/prompts.json"
 SUMMARY_CSV="$RUN_DIR/perf_summary.csv"

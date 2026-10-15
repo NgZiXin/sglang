@@ -77,6 +77,7 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin, BaseScheduler):
             0 uses the original flow shift; 1 uses early-fine with small gaps at both endpoints,
             prioritizing the noisy starting region and bypassing flow shift for generated sigmas.
             2 uses Beta(0.6, 0.6) quantiles over the original shifted sigma range.
+            3 uses Beta(0.6, 0.4) quantiles over the same range.
     """
 
     _compatibles = [e.name for e in KarrasDiffusionSchedulers]
@@ -105,11 +106,12 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin, BaseScheduler):
         **kwargs,
     ):
 
-        if timestep_schedule not in (0, 1, 2):
+        if timestep_schedule not in (0, 1, 2, 3):
             raise ValueError(
-                "timestep_schedule must be 0 (original), 1 (early-fine), or 2 (beta)"
+                "timestep_schedule must be 0 (original), 1 (early-fine), "
+                "2 (beta 0.6, 0.6), or 3 (beta 0.6, 0.4)"
             )
-        if timestep_schedule in (1, 2) and (
+        if timestep_schedule in (1, 2, 3) and (
             use_dynamic_shifting or solver_p is not None or final_sigmas_type != "zero"
         ):
             raise ValueError(
@@ -209,7 +211,7 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin, BaseScheduler):
             )
 
         use_early_fine = self.config.timestep_schedule == 1 and sigmas is None
-        use_beta = self.config.timestep_schedule == 2 and sigmas is None
+        use_beta = self.config.timestep_schedule in (2, 3) and sigmas is None
         if use_beta and (num_inference_steps is None or num_inference_steps < 1):
             raise ValueError("beta requires a positive num_inference_steps")
         if use_early_fine:
@@ -243,8 +245,9 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin, BaseScheduler):
             # "Beta Sampling is All You Need" (arXiv:2407.12173).
             # Redistribute after shifting, matching FlowMatchEuler's beta conversion.
             # The last evaluation stays above zero; append the terminal zero below.
+            beta_shape = 0.6 if self.config.timestep_schedule == 2 else 0.4
             quantiles = scipy.stats.beta.ppf(
-                1 - np.linspace(0, 1, num_inference_steps), 0.6, 0.6
+                1 - np.linspace(0, 1, num_inference_steps), 0.6, beta_shape
             )
             sigmas = sigmas[-1] + (sigmas[0] - sigmas[-1]) * quantiles
             sigmas = sigmas.astype(np.float32)
