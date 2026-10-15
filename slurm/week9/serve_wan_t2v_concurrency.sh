@@ -22,9 +22,14 @@ NUM_PROMPTS=2 # Total measured requests at each concurrency level.
 PORT=30000
 
 setup_sglang_env
+# Let Nsight observe normal execution without forced stage/step synchronization.
+export SGLANG_DIFFUSION_SYNC_STAGE_PROFILING=0
 
 RUN_DIR="$OUTPUT_DIR/${SLURM_JOB_ID}"
 mkdir -p "$RUN_DIR"
+NSYS_SESSION="wan_${SLURM_JOB_ID}"
+NSYS_ACTIVE=0
+nsys --version > "$RUN_DIR/nsys.log"
 cp "$REPO_DIR/slurm/vbench_11_prompts.json" "$RUN_DIR/prompts.json"
 
 # The serving benchmark expects one prompt per line.
@@ -37,7 +42,9 @@ with open(sys.argv[1]) as file:
         print(prompt["prompt_en"])
 PY
 
-sglang serve \
+# Launch under Nsight now; start each capture after the server is ready.
+nsys launch --session-new "$NSYS_SESSION" --trace cuda,nvtx \
+  sglang serve \
   --model-path "$MODEL_PATH" \
   --num-gpus 1 \
   --host 127.0.0.1 \
@@ -46,23 +53,39 @@ sglang serve \
   --batching-max-size 3 \
   --batching-delay-ms 5 \
   --enable-batching-metrics \
+  --enable-layerwise-nvtx-marker \
   > "$RUN_DIR/server.log" 2>&1 &
-SERVER_PID=$!
+NSYS_PID=$!
 
-# Stop the server even if a benchmark fails.
+# Finalize any active capture before shutting down the server process group.
 cleanup() {
-  kill "$SERVER_PID" 2>/dev/null || true
-  wait "$SERVER_PID" 2>/dev/null || true
+  if (( NSYS_ACTIVE )); then
+    nsys stop --session "$NSYS_SESSION" >> "$RUN_DIR/nsys.log" 2>&1 || true
+  fi
+  nsys shutdown --session "$NSYS_SESSION" --kill sigterm >> "$RUN_DIR/nsys.log" 2>&1 || true
+  wait "$NSYS_PID" 2>/dev/null || true
 }
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-# Reuse the same server and prompts for all three concurrency levels.
-# The benchmark waits for /health and excludes warmup from its measurements.
+# Wait for /health before collecting, so model loading is excluded from the traces.
+python3 - "$PORT" <<'PY'
+import sys
+from sglang.multimodal_gen.benchmarks.bench_serving import wait_for_service
+
+wait_for_service(f"http://127.0.0.1:{sys.argv[1]}")
+PY
+
+# Reuse the same server and prompts for both concurrency levels.
+# Each Nsight report includes warmup; benchmark latency statistics exclude it.
 # Latency includes server queueing and generation, with completion polled every second.
 for CONCURRENCY in 1 2; do
   echo "Benchmarking $NUM_PROMPTS requests, concurrency=$CONCURRENCY"
+  nsys start --session "$NSYS_SESSION" \
+    --sample none --cpuctxsw none \
+    --output "$RUN_DIR/concurrency_${CONCURRENCY}" >> "$RUN_DIR/nsys.log" 2>&1
+  NSYS_ACTIVE=1
   python3 -m sglang.multimodal_gen.benchmarks.bench_serving \
     --model "$MODEL_PATH" \
     --host 127.0.0.1 \
@@ -83,6 +106,9 @@ for CONCURRENCY in 1 2; do
     --warmup-inference-steps "$NUM_INFERENCE_STEPS" \
     --output-file "$RUN_DIR/concurrency_${CONCURRENCY}.json" \
     2>&1 | tee "$RUN_DIR/concurrency_${CONCURRENCY}.log"
+  nsys stop --session "$NSYS_SESSION" >> "$RUN_DIR/nsys.log" 2>&1
+  NSYS_ACTIVE=0
+  test -s "$RUN_DIR/concurrency_${CONCURRENCY}.nsys-rep"
 done
 
-echo "Benchmark completed. Latency statistics (seconds) and logs: $RUN_DIR"
+echo "Benchmark completed. Latency statistics, Nsight reports, and logs: $RUN_DIR"
