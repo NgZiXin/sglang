@@ -117,7 +117,10 @@ import requests
 port, pid = map(int, sys.argv[1:])
 deadline = time.monotonic() + 1200
 while time.monotonic() < deadline:
-    os.kill(pid, 0)  # Raises if ncu has already exited.
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        sys.exit('Profiler exited before the server was ready.')
     try:
         if requests.get(f"http://127.0.0.1:{port}/health", timeout=1).ok:
             break
@@ -126,7 +129,12 @@ while time.monotonic() < deadline:
     time.sleep(2)
 else:
     raise TimeoutError("Server did not become ready; check server.log.")
-PY    
+PY
+    then
+      echo "Startup failed. Last 100 lines of $PROFILE_DIR/server.log:"
+      tail -n 100 "$PROFILE_DIR/server.log"
+      exit 1
+    fi
 
     python3 -m sglang.multimodal_gen.benchmarks.bench_serving \
       --model "$MODEL_PATH" \
