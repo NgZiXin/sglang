@@ -133,3 +133,38 @@ def load_clean_latent(path, noise, batch, config):
     ):
         raise ValueError("Draft must be finite floating-point latents matching the requested shape")
     return clean.to(device=noise.device, dtype=noise.dtype)
+
+
+INTERMEDIATE_FORMAT = "sglang-wan21-intermediate-latent-v1"
+
+
+def resume_intermediate_latent(batch, server_args):
+    """Use the original schedule suffix and let the denoising loop reset UniPC."""
+    import torch
+
+    payload = torch.load(
+        batch.wan_resume_latent_path, map_location="cpu", weights_only=True
+    )
+    if payload["format"] != INTERMEDIATE_FORMAT:
+        raise ValueError("Expected an intermediate Wan checkpoint, not a clean latent")
+    if payload["model_path"] != str(server_args.model_path) or any(
+        payload[name] != getattr(batch, name) for name in ("height", "width", "num_frames")
+    ):
+        raise ValueError("Checkpoint model and video dimensions must match the request")
+    scheduler = batch.scheduler
+    if not torch.equal(payload["timesteps"], scheduler.timesteps.cpu()) or not torch.equal(
+        payload["sigmas"], scheduler.sigmas.cpu()
+    ):
+        raise ValueError("Checkpoint must use the same full denoising schedule")
+    k = payload["completed_steps"]
+    if not 0 < k < len(scheduler.timesteps):
+        raise ValueError("Checkpoint must be from an intermediate step")
+    # Slice the actual tensors: no re-noising, rescaling, or second flow shift.
+    batch.latents = payload["latents"].to(device=batch.latents.device)
+    batch.raw_latent_shape = batch.latents.shape
+    scheduler.timesteps = scheduler.timesteps[k:].clone()
+    scheduler.sigmas = scheduler.sigmas[k:].clone()  # includes the terminal zero
+    scheduler.num_inference_steps = len(scheduler.timesteps)
+    batch.timesteps = scheduler.timesteps
+    batch.sigmas = scheduler.sigmas[:-1].cpu().tolist()
+    batch.num_inference_steps = scheduler.num_inference_steps

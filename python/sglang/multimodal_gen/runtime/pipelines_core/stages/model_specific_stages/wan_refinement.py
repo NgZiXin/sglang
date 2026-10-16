@@ -20,9 +20,11 @@ from sglang.multimodal_gen.runtime.pipelines_core.stages.base import (
     StageParallelismType,
 )
 from sglang.multimodal_gen.runtime.utils.wan_refinement import (
+    BASE_CONFIGS,
     load_clean_latent,
     make_latent_payload,
     refinement_sigmas,
+    resume_intermediate_latent,
     validate_refinement_options,
 )
 
@@ -39,12 +41,31 @@ class WanRefinementPreparationStage(PipelineStage):
         return StageParallelismType.REPLICATED
 
     def forward(self, batch, server_args):
+        if batch.is_warmup:
+            return batch
+        if batch.wan_resume_latent_path:
+            if (
+                not self.allow_refinement
+                or type(server_args.pipeline_config).__name__ not in BASE_CONFIGS
+                or server_args.num_gpus != 1
+                or batch.progressive_mode != "fullres"
+                or batch.rollout
+                or batch.num_outputs_per_prompt != 1
+                or batch.wan_init_latent_path
+            ):
+                raise ValueError(
+                    "Request caching requires base Wan 2.1, one GPU/output, "
+                    "fullres, and no rollout or clean-latent refinement"
+                )
+            resume_intermediate_latent(batch, server_args)
+            self.log_info(
+                "Wan checkpoint resume: %d steps remaining", batch.num_inference_steps
+            )
+            return batch
         if not batch.wan_init_latent_path:
             return batch
         if not self.allow_refinement:
             raise ValueError("Use base WanPipeline, not WanDMDPipeline, for refinement")
-        if batch.is_warmup:
-            return batch
         validate_refinement_options(
             batch.sampling_params, type(server_args.pipeline_config).__name__
         )

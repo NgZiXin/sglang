@@ -25,6 +25,7 @@ def options(**overrides):
     values = dict(
         wan_init_latent_path=None, wan_save_latent_path=None,
         wan_refine_sigma=None, wan_refine_schedule="rescale",
+        wan_resume_latent_path=None,
         num_outputs_per_prompt=1, prompt="A moving tram", prompt_path=None,
         seed=42, progressive_mode="fullres", rollout=False,
     )
