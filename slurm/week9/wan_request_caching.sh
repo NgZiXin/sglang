@@ -23,7 +23,7 @@ from pathlib import Path
 # Experiment settings: edit these here.
 MODEL_PATH = "Wan-AI/Wan2.1-T2V-14B-Diffusers"
 PROMPT_A = "A sunlit city square"
-PROMPT_B = "The red tram moves slowly through a sunlit city square"
+PROMPT_B = "A red tram moves slowly through a sunlit city square"
 SEED = 42
 NUM_STEPS = 50
 K_OVERRIDE = None  # None uses similarity; set e.g. 15 for a fixed-k experiment.
