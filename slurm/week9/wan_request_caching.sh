@@ -50,8 +50,8 @@ def prompt_similarity(prompt_a, prompt_b):
     return (embeddings[0] @ embeddings[1]).item()
 
 
-def save_checkpoints(result, directory, server_args):
-    """Save selected entries from SGLang's existing CPU trajectory output."""
+def save_checkpoint(result, path, server_args, k):
+    """Save only the selected post-step latent from the returned trajectory."""
     import torch
     from sglang.multimodal_gen.runtime.models.schedulers.scheduling_flow_unipc_multistep import (
         FlowUniPCMultistepScheduler,
@@ -68,26 +68,25 @@ def save_checkpoints(result, directory, server_args):
     torch.testing.assert_close(
         result.trajectory_timesteps, scheduler.timesteps, rtol=0, atol=0
     )
-    directory.mkdir(parents=True, exist_ok=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
     height, width, num_frames = result.size
-    for _, k in SIMILARITY_TO_K:
-        torch.save(
-            {
-                "format": INTERMEDIATE_FORMAT,
-                # Entry k-1 is AFTER k updates. Clone so torch.save doesn't serialize
-                # the entire trajectory storage backing this tensor view.
-                "latents": result.trajectory_latents[:, k - 1].clone(),
-                "completed_steps": k,
-                "timesteps": scheduler.timesteps,
-                "sigmas": scheduler.sigmas,
-                "model_path": str(server_args.model_path),
-                "height": height,
-                "width": width,
-                "num_frames": num_frames,
-                "prompt": result.prompt,
-            },
-            directory / f"step_{k}.pt",
-        )
+    torch.save(
+        {
+            "format": INTERMEDIATE_FORMAT,
+            # Entry k-1 is AFTER k updates. Clone so torch.save doesn't serialize
+            # the entire trajectory storage backing this tensor view.
+            "latents": result.trajectory_latents[:, k - 1].clone(),
+            "completed_steps": k,
+            "timesteps": scheduler.timesteps,
+            "sigmas": scheduler.sigmas,
+            "model_path": str(server_args.model_path),
+            "height": height,
+            "width": width,
+            "num_frames": num_frames,
+            "prompt": result.prompt,
+        },
+        path,
+    )
 
 
 def main():
@@ -161,10 +160,12 @@ def main():
         return result
 
     try:
-        # 1. Complete A and save five checkpoints from its returned trajectory.
-        source = run("a_full", PROMPT_A, return_trajectory_latents=True)
-        checkpoints = output_dir / "checkpoints"
-        save_checkpoints(source, checkpoints, generator.server_args)
+        # 1. Complete A; collect its trajectory only when B will reuse a latent.
+        source = run("a_full", PROMPT_A, return_trajectory_latents=k > 0)
+        checkpoint = None
+        if k > 0:
+            checkpoint = output_dir / "checkpoints" / f"step_{k}.pt"
+            save_checkpoint(source, checkpoint, generator.server_args, k)
         del source
 
         # 2. Resume B at k, then generate the full B baseline for comparison.
@@ -172,7 +173,7 @@ def main():
             "b_cached",
             PROMPT_B,
             skipped=k,
-            wan_resume_latent_path=str(checkpoints / f"step_{k}.pt") if k else None,
+            wan_resume_latent_path=str(checkpoint) if checkpoint else None,
         )
         run("b_full", PROMPT_B)
     finally:
