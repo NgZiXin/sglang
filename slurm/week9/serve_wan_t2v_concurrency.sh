@@ -92,7 +92,7 @@ for KERNEL in attention matmul; do
       --kernel-name "$KERNEL_FILTER" \
       --launch-count "$LAUNCH_COUNT" \
       --set full \
-      --output "$PROFILE_DIR/profile" \
+      --export "$PROFILE_DIR/profile" \
       setsid bash -c 'echo "$$" > "$1"; shift; exec "$@"' _ "$SERVER_PID_FILE" \
       sglang serve \
         --model-path "$MODEL_PATH" \
@@ -108,7 +108,7 @@ for KERNEL in attention matmul; do
     NCU_PID=$!
 
     # Wait up to 20 minutes for loading; fail early if the profiler exits.
-    python3 - "$PORT" "$NCU_PID" <<'PY'
+    if ! python3 - "$PORT" "$NCU_PID" <<'PY'
 import os
 import sys
 import time
@@ -126,7 +126,7 @@ while time.monotonic() < deadline:
     time.sleep(2)
 else:
     raise TimeoutError("Server did not become ready; check server.log.")
-PY
+PY    
 
     python3 -m sglang.multimodal_gen.benchmarks.bench_serving \
       --model "$MODEL_PATH" \
