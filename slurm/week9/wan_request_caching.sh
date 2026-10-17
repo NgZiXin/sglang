@@ -12,8 +12,8 @@ source "$HOME/cp4101/sglang/slurm/common.sh"
 export OUTPUT_DIR="$SCRATCH/sglang/outputs/week9/wan_request_caching/${SLURM_JOB_ID:-manual}"
 # Experiment settings.
 MODEL_PATH="Wan-AI/Wan2.1-T2V-14B-Diffusers"
-PROMPT_A="A city square"
-PROMPT_B="A tram moves through a city square"
+PROMPT_A="A man walking left to right"
+PROMPT_B="A man walking right to left"
 SEED=42
 NUM_INFERENCE_STEPS=50
 HEIGHT=480
