@@ -11,7 +11,7 @@ set -euo pipefail
 
 source "$HOME/cp4101/sglang/slurm/common.sh"
 
-OUTPUT_DIR="$SCRATCH/sglang/outputs/week9/serving-concurrency"
+OUTPUT_DIR="$SCRATCH/sglang/outputs/week9/serving-concurrency-2"
 MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
 HEIGHT=480
 WIDTH=832
