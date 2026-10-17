@@ -4,7 +4,7 @@
 #SBATCH --gres=gpu:h100-96:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=192G
-#SBATCH --time=00:45:00
+#SBATCH --time=02:00:00
 #SBATCH --output=wan-request-caching-%j.out
 
 set -euo pipefail
