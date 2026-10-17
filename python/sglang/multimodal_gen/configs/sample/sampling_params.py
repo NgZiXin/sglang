@@ -222,8 +222,8 @@ class SamplingParams:
     wan_refine_sigma: float | None = None
     wan_refine_schedule: str = "rescale"
 
-    # Resume a noisy checkpoint saved by the Python experiment driver.
-    wan_resume_latent_path: str | None = None
+    # Resume a noisy checkpoint supplied in memory.
+    wan_resume_latent: dict | None = None
 
     # LongCat-Image parameters
     enable_cfg_renorm: bool = False

@@ -43,7 +43,7 @@ class WanRefinementPreparationStage(PipelineStage):
     def forward(self, batch, server_args):
         if batch.is_warmup:
             return batch
-        if batch.wan_resume_latent_path:
+        if batch.wan_resume_latent is not None:
             if (
                 not self.allow_refinement
                 or type(server_args.pipeline_config).__name__ not in BASE_CONFIGS

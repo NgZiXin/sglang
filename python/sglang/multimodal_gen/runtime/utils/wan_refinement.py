@@ -142,9 +142,7 @@ def resume_intermediate_latent(batch, server_args):
     """Use the original schedule suffix and let the denoising loop reset UniPC."""
     import torch
 
-    payload = torch.load(
-        batch.wan_resume_latent_path, map_location="cpu", weights_only=True
-    )
+    payload = batch.wan_resume_latent
     if payload["format"] != INTERMEDIATE_FORMAT:
         raise ValueError("Expected an intermediate Wan checkpoint, not a clean latent")
     if payload["model_path"] != str(server_args.model_path) or any(
