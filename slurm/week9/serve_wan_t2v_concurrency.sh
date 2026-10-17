@@ -22,8 +22,8 @@ NUM_PROMPTS=2 # Total measured requests at each concurrency level.
 PORT=30000
 
 setup_sglang_env
-# Let Nsight observe normal execution without forced stage/step synchronization.
-export SGLANG_DIFFUSION_SYNC_STAGE_PROFILING=0
+# Synchronize stage/step timers to attribute GPU work accurately.
+export SGLANG_DIFFUSION_SYNC_STAGE_PROFILING=1
 
 RUN_DIR="$OUTPUT_DIR/${SLURM_JOB_ID}"
 mkdir -p "$RUN_DIR"
@@ -77,15 +77,9 @@ from sglang.multimodal_gen.benchmarks.bench_serving import wait_for_service
 wait_for_service(f"http://127.0.0.1:{sys.argv[1]}")
 PY
 
-# Reuse the same server and prompts for both concurrency levels.
-# Each Nsight report includes warmup; benchmark latency statistics exclude it.
-# Latency includes server queueing and generation, with completion polled every second.
-for CONCURRENCY in 1 2; do
-  echo "Benchmarking $NUM_PROMPTS requests, concurrency=$CONCURRENCY"
-  nsys start --session "$NSYS_SESSION" \
-    --sample none --cpuctxsw none \
-    --output "$RUN_DIR/concurrency_${CONCURRENCY}" >> "$RUN_DIR/nsys.log" 2>&1
-  NSYS_ACTIVE=1
+# Use the same benchmark command for warmup and measurement.
+run_benchmark() {
+  local concurrency="$1" num_prompts="$2" label="$3"
   python3 -m sglang.multimodal_gen.benchmarks.bench_serving \
     --model "$MODEL_PATH" \
     --host 127.0.0.1 \
@@ -93,8 +87,8 @@ for CONCURRENCY in 1 2; do
     --task text-to-video \
     --dataset vbench \
     --dataset-path "$RUN_DIR/prompts.txt" \
-    --num-prompts "$NUM_PROMPTS" \
-    --max-concurrency "$CONCURRENCY" \
+    --num-prompts "$num_prompts" \
+    --max-concurrency "$concurrency" \
     --request-rate inf \
     --height "$HEIGHT" \
     --width "$WIDTH" \
@@ -102,10 +96,23 @@ for CONCURRENCY in 1 2; do
     --fps "$FPS" \
     --num-inference-steps "$NUM_INFERENCE_STEPS" \
     --extra-body '{"seed": 42, "enable_cache_dit": false}' \
-    --warmup-requests 1 \
-    --warmup-inference-steps "$NUM_INFERENCE_STEPS" \
-    --output-file "$RUN_DIR/concurrency_${CONCURRENCY}.json" \
-    2>&1 | tee "$RUN_DIR/concurrency_${CONCURRENCY}.log"
+    --warmup-requests 0 \
+    --output-file "$RUN_DIR/${label}.json" \
+    2>&1 | tee "$RUN_DIR/${label}.log"
+}
+
+# Warm the actual concurrency before capture; built-in warmups are sequential.
+# Nsight captures and measured statistics exclude these separate warmup runs.
+for CONCURRENCY in 1 2; do
+  echo "Warming concurrency=$CONCURRENCY"
+  run_benchmark "$CONCURRENCY" "$CONCURRENCY" "warmup_${CONCURRENCY}"
+
+  echo "Benchmarking $NUM_PROMPTS requests, concurrency=$CONCURRENCY"
+  nsys start --session "$NSYS_SESSION" \
+    --sample none --cpuctxsw none \
+    --output "$RUN_DIR/concurrency_${CONCURRENCY}" >> "$RUN_DIR/nsys.log" 2>&1
+  NSYS_ACTIVE=1
+  run_benchmark "$CONCURRENCY" "$NUM_PROMPTS" "concurrency_${CONCURRENCY}"
   nsys stop --session "$NSYS_SESSION" >> "$RUN_DIR/nsys.log" 2>&1
   NSYS_ACTIVE=0
   test -s "$RUN_DIR/concurrency_${CONCURRENCY}.nsys-rep"
