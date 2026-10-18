@@ -10,6 +10,11 @@ def parse_args():
     parser.add_argument("--model-path", required=True)
     parser.add_argument("--prompt-a", required=True)
     parser.add_argument("--prompt-b", required=True)
+    parser.add_argument(
+        "--negative-prompt-b-append",
+        default="",
+        help="Terms appended to the model's default negative prompt for both B runs",
+    )
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--num-inference-steps", type=int, required=True)
     parser.add_argument("--height", type=int, required=True)
@@ -82,15 +87,23 @@ def main(args):
     )
 
     output_dir = args.output_dir
-    similarity = prompt_similarity(args.prompt_a, args.prompt_b, args.clip_model)
-    k = (
-        choose_k(similarity, args.similarity_to_k)
-        if args.k_override is None
-        else args.k_override
-    )
-    assert k in [0] + [step for _, step in args.similarity_to_k]
+    # Temporarily disable similarity-based selection and the CLI override.
+    # Restore this block to re-enable the previous behavior.
+    # similarity = prompt_similarity(args.prompt_a, args.prompt_b, args.clip_model)
+    # k = (
+    #     choose_k(similarity, args.similarity_to_k)
+    #     if args.k_override is None
+    #     else args.k_override
+    # )
+    # assert k in [0] + [step for _, step in args.similarity_to_k]
+    # print(
+    #     f"Similarity={similarity:.6f}; skip k={k}; B runs {args.num_inference_steps - k} steps",
+    #     flush=True,
+    # )
+    similarity = None
+    k = 5
     print(
-        f"Similarity={similarity:.6f}; skip k={k}; B runs {args.num_inference_steps - k} steps",
+        f"Fixed k={k}; B runs {args.num_inference_steps - k} steps",
         flush=True,
     )
 
@@ -118,6 +131,24 @@ def main(args):
         output_path=str(output_dir),
     )
     rows = []
+    b_settings = {}
+    negative_prompt_b_append = args.negative_prompt_b_append.strip()
+    if negative_prompt_b_append:
+        from sglang.multimodal_gen.configs.sample.sampling_params import SamplingParams
+
+        defaults = SamplingParams.from_user_sampling_params_args(
+            generator.server_args.model_path,
+            server_args=generator.server_args,
+            prompt=args.prompt_b,
+            **settings,
+        )
+        default_negative_prompt = defaults.negative_prompt or ""
+        b_settings["negative_prompt"] = (
+            f"{default_negative_prompt}, {negative_prompt_b_append}"
+            if default_negative_prompt
+            else negative_prompt_b_append
+        )
+        print(f"B negative prompt: {b_settings['negative_prompt']}", flush=True)
 
     def run(label, prompt, skipped=0, **kwargs):
         started = time.perf_counter()
@@ -166,9 +197,10 @@ def main(args):
             args.prompt_b,
             skipped=k,
             wan_resume_latent=checkpoint,
+            **b_settings,
         )
         del checkpoint
-        run("b_full", args.prompt_b)
+        run("b_full", args.prompt_b, **b_settings)
     finally:
         generator.shutdown()
 
@@ -183,6 +215,8 @@ def main(args):
                 prompt_a=args.prompt_a,
                 prompt_b=args.prompt_b,
                 settings=settings,
+                negative_prompt_b_append=negative_prompt_b_append,
+                b_settings=b_settings,
                 clip_model=args.clip_model,
                 similarity=similarity,
                 similarity_to_k=args.similarity_to_k,
