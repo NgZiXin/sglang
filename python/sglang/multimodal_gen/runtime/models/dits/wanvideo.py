@@ -67,6 +67,7 @@ from sglang.multimodal_gen.runtime.platforms import (
 from sglang.multimodal_gen.runtime.platforms.aiter import USE_AITER
 from sglang.multimodal_gen.runtime.server_args import get_global_server_args
 from sglang.multimodal_gen.runtime.utils.logging_utils import init_logger
+from sglang.multimodal_gen.runtime.utils.wan_chai_kv import WanChaiKVCache
 from sglang.srt.utils import add_prefix
 
 logger = init_logger(__name__)
@@ -471,6 +472,8 @@ class WanTransformerBlock(nn.Module):
                 is_cross_attention=False,
             )
 
+        self.chai_kv_first_block = prefix == "blocks.0"
+        self.chai_kv_cache = None
         self.hidden_dim = dim
         self.num_attention_heads = num_heads
         self.dim_head = dim // num_heads
@@ -635,6 +638,27 @@ class WanTransformerBlock(nn.Module):
             query, key = _apply_rotary_emb(
                 query, cos, sin, is_neox_style=False
             ), _apply_rotary_emb(key, cos, sin, is_neox_style=False)
+        if self.chai_kv_first_block:
+            context = get_forward_context()
+            batch = context.forward_batch
+            if getattr(batch, "wan_chai_kv", None) is not None:
+                server_args = get_global_server_args()
+                if (
+                    get_tp_world_size() != 1
+                    or get_sp_world_size() != 1
+                    or server_args.enable_cfg_parallel
+                    or server_args.enable_torch_compile
+                    or server_args.enable_breakable_cuda_graph
+                ):
+                    raise ValueError("Wan CHAI requires single-GPU eager execution")
+                if self.chai_kv_cache is None:
+                    self.chai_kv_cache = WanChaiKVCache()
+                key, value = self.chai_kv_cache.apply(
+                    batch, context.current_timestep, key, value
+                )
+            elif self.chai_kv_cache is not None:
+                # Release experimental tensors before any ordinary request.
+                self.chai_kv_cache = None
         attn_output = self.attn1(query, key, value)
         attn_output = attn_output.flatten(2)
         attn_output, _ = self.to_out(attn_output)

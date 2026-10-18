@@ -225,6 +225,9 @@ class SamplingParams:
     # Resume a noisy checkpoint supplied in memory.
     wan_resume_latent: dict | None = None
 
+    # Offline, single-GPU Wan 2.1 K/V experiment: mode, cache_id, report_path.
+    wan_chai_kv: dict | None = None
+
     # LongCat-Image parameters
     enable_cfg_renorm: bool = False
     cfg_renorm_min: float = 0.0
