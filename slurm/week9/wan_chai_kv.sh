@@ -13,8 +13,6 @@ export OUTPUT_DIR="$SCRATCH/sglang/outputs/week9/wan_chai_kv/${SLURM_JOB_ID:-man
 
 # Experiment settings. STEPS_B applies to both cached and baseline B.
 MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
-PROMPT_A="A party on a sandy beach beside gentle waves, wide shot."
-PROMPT_B="Gentle waves roll onto an empty sandy beach, wide shot."
 SEED=42
 STEPS_A=40
 STEPS_B=10
@@ -26,16 +24,46 @@ GUIDANCE_SCALE=5.0
 
 setup_sglang_env
 
-python3 -u "$REPO_DIR/slurm/week9/wan_chai_kv.py" \
-  --model-path "$MODEL_PATH" \
-  --prompt-a "$PROMPT_A" \
-  --prompt-b "$PROMPT_B" \
-  --seed "$SEED" \
-  --steps-a "$STEPS_A" \
-  --steps-b "$STEPS_B" \
-  --height "$HEIGHT" \
-  --width "$WIDTH" \
-  --num-frames "$NUM_FRAMES" \
-  --fps "$FPS" \
-  --guidance-scale "$GUIDANCE_SCALE" \
-  --output-dir "$OUTPUT_DIR" 2>&1 | tee "$OUTPUT_DIR/experiment.log"
+# Each row: pair_id|prompt_A|prompt_B.
+while IFS='|' read -r PAIR_ID PROMPT_A PROMPT_B; do
+  PAIR_OUTPUT_DIR="$OUTPUT_DIR/${PAIR_ID}/seed_$SEED"
+  mkdir -p "$PAIR_OUTPUT_DIR"
+  printf '\nRunning pair %s with seed %s\nA: %s\nB: %s\nOutputs: %s\n' \
+    "$PAIR_ID" "$SEED" "$PROMPT_A" "$PROMPT_B" "$PAIR_OUTPUT_DIR"
+
+  python3 -u "$REPO_DIR/slurm/week9/wan_chai_kv.py" \
+    --model-path "$MODEL_PATH" \
+    --prompt-a "$PROMPT_A" \
+    --prompt-b "$PROMPT_B" \
+    --seed "$SEED" \
+    --steps-a "$STEPS_A" \
+    --steps-b "$STEPS_B" \
+    --height "$HEIGHT" \
+    --width "$WIDTH" \
+    --num-frames "$NUM_FRAMES" \
+    --fps "$FPS" \
+    --guidance-scale "$GUIDANCE_SCALE" \
+    --output-dir "$PAIR_OUTPUT_DIR" 2>&1 | tee "$PAIR_OUTPUT_DIR/experiment.log"
+done <<'PROMPT_PAIRS'
+01_city_tram|A tram moves slowly through a cobblestone city square in morning light, wide shot.|A bus moves slowly through a cobblestone city square in morning light, wide shot.
+02_beach_dog|A golden retriever runs along a sandy beach beside gentle waves at sunset, side view.|A golden retriever digs a hole in a sandy beach beside gentle waves at sunset, side view.
+03_window_cat|A cat sits on a windowsill watching rain fall outside, medium shot.|A cat jumps down from a windowsill while rain falls outside, medium shot.
+04_park_cyclist|A cyclist rides along a tree-lined park path in daylight, tracking shot.|A cyclist rides along a canal towpath in daylight, tracking shot.
+05_coffee_cup|A hand pours coffee from a glass pot into a ceramic cup on a wooden cafe table, close-up shot.|A hand stirs coffee with a spoon in a ceramic cup on a wooden cafe table, close-up shot.
+06_lake_boat|A small wooden boat drifts across a calm lake beneath misty mountains, wide shot.|A small wooden boat drifts along a narrow river beneath misty mountains, wide shot.
+07_garden_butterfly|A butterfly flutters above lavender flowers in a sunlit garden, close-up shot.|A bee flutters above lavender flowers in a sunlit garden, close-up shot.
+08_market_walk|A woman walks past a fruit stall at an outdoor market in daylight, medium shot.|A woman picks up an apple at a fruit stall at an outdoor market in daylight, medium shot.
+09_park_fountain|Water splashes from a stone fountain in a quiet park lined with trees, fixed camera.|Water splashes from a stone fountain in a quiet courtyard lined with arches, fixed camera.
+10_river_ducks|Two ducks paddle across a calm river beneath an old stone bridge, wide shot.|Two ducks take flight from a calm river beneath an old stone bridge, wide shot.
+11_mountain_hiker|A hiker with a backpack walks along a rocky mountain trail under a clear sky, rear view.|A hiker with a backpack walks along a wooden suspension bridge under a clear sky, rear view.
+12_kitchen_chef|A chef slices a loaf of bread on a wooden cutting board in a bright kitchen, close-up shot.|A chef slices a tomato on a wooden cutting board in a bright kitchen, close-up shot.
+13_meadow_horse|A horse grazes in a grassy meadow with distant hills, side view.|A horse gallops through a grassy meadow with distant hills, side view.
+14_rainy_street|A person holding an umbrella walks along a rain-soaked city sidewalk at night, tracking shot.|A person holding an umbrella walks across a rain-soaked pedestrian bridge at night, tracking shot.
+15_forest_stream|A shallow stream flows over smooth rocks through a dense forest in soft morning light, fixed camera.|A shallow stream flows over smooth rocks through an open meadow in soft morning light, fixed camera.
+16_balloons|A balloon floats above a grassy field in a gentle breeze, low-angle shot.|A kite floats above a grassy field in a gentle breeze, low-angle shot.
+17_beach_waves|Gentle waves roll onto an empty sandy beach beneath a clear sky, wide shot.|Powerful waves crash onto an empty sandy beach beneath a clear sky, wide shot.
+18_street_musician|A musician plays a flute beside a brick wall on a quiet street, medium shot.|A musician plays a saxophone beside a brick wall on a quiet street, medium shot.
+19_snowy_cabin|Snow falls around a wooden cabin in a pine forest, fixed camera.|Snow falls around a camping tent in a pine forest, fixed camera.
+20_garden_watering|A person waters potted flowers with a watering can on a sunny balcony, medium shot.|A person trims potted flowers with pruning shears on a sunny balcony, medium shot.
+21_beach_party|A party on a sandy beach beside gentle waves, wide shot.|Gentle waves roll onto an empty sandy beach, wide shot.
+PROMPT_PAIRS
