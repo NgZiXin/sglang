@@ -7,7 +7,6 @@ from pathlib import Path
 class WanChaiKVCache:
     # Human steps 2, 3, 4; only block 0 owns this controller.
     STEPS = (1, 2, 3)
-    NUM_STEPS = 40
 
     def __init__(self):
         self.entries = {}
@@ -21,8 +20,9 @@ class WanChaiKVCache:
         mode = config.get("mode")
         if mode not in ("record", "reuse", "off"):
             raise ValueError("wan_chai_kv mode must be record, reuse, or off")
-        if request.num_inference_steps != self.NUM_STEPS:
-            raise ValueError("Wan CHAI experiment requires exactly 40 steps")
+        if request.num_inference_steps < 4:
+            raise ValueError("Wan CHAI requires at least 4 steps for steps 2-4 reuse")
+        self.num_steps = request.num_inference_steps
         if not request.do_classifier_free_guidance or request.cfg_gate_step != 1.0:
             raise ValueError("Wan CHAI requires both CFG branches at every step")
         if any(getattr(request, flag, False) for flag in (
@@ -60,7 +60,7 @@ class WanChaiKVCache:
             self._begin(request, config)
         negative = bool(request.is_cfg_negative)
         call = (step_index, negative)
-        if call in self.calls or not 0 <= step_index < self.NUM_STEPS:
+        if call in self.calls or not 0 <= step_index < self.num_steps:
             raise ValueError(f"Unexpected Wan CHAI block-0 invocation: {call}")
         self.calls.add(call)
         mode = config["mode"]
@@ -84,16 +84,16 @@ class WanChaiKVCache:
                 "value_shape": list(value.shape),
                 "dtype": str(key.dtype),
             })
-        if step_index == self.NUM_STEPS - 1 and negative:
-            expected_calls = {(i, n) for i in range(self.NUM_STEPS) for n in (False, True)}
+        if step_index == self.num_steps - 1 and negative:
+            expected_calls = {(i, n) for i in range(self.num_steps) for n in (False, True)}
             if self.calls != expected_calls:
-                raise ValueError("Wan CHAI did not observe all 40 steps and both CFG branches")
+                raise ValueError(f"Wan CHAI did not observe all {self.num_steps} steps and both CFG branches")
             expected_events = 0 if mode == "off" else 6
             if len(self.events) != expected_events:
                 raise ValueError("Unexpected Wan CHAI capture/replacement count")
             report = {
                 "mode": mode, "cache_id": config["cache_id"],
-                "num_steps": self.NUM_STEPS, "block0_calls": len(self.calls),
+                "num_steps": self.num_steps, "block0_calls": len(self.calls),
                 "captures": len(self.events) if mode == "record" else 0,
                 "replacements": len(self.events) if mode == "reuse" else 0,
                 "cache_bytes": sum(t.numel() * t.element_size()

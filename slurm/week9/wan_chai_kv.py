@@ -1,4 +1,4 @@
-"""Compare 40-step Wan B with and without first-block K/V from request A."""
+"""Compare Wan B with and without first-block K/V from request A."""
 
 import argparse
 import csv
@@ -15,6 +15,10 @@ def parse_args():
     parser.add_argument("--prompt-b", default="Gentle waves roll onto an empty sandy beach, wide shot.")
     parser.add_argument("--negative-prompt", default=None,
                         help="Shared by all runs; omit to use the model default")
+    parser.add_argument("--steps-a", type=int, required=True,
+                        help="Denoising steps for source request A (at least 4)")
+    parser.add_argument("--steps-b", type=int, required=True,
+                        help="Denoising steps for both B runs (at least 4)")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--height", type=int, default=480)
     parser.add_argument("--width", type=int, default=832)
@@ -23,6 +27,8 @@ def parse_args():
     parser.add_argument("--guidance-scale", type=float, default=5.0)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
+    if args.steps_a < 4 or args.steps_b < 4:
+        parser.error("--steps-a and --steps-b must be at least 4 for steps 2-4 reuse")
     if args.guidance_scale <= 1:
         parser.error("--guidance-scale must exceed 1 to exercise both CFG branches")
     return args
@@ -36,7 +42,7 @@ def main(args):
     cache_id = uuid.uuid4().hex
     settings = dict(
         height=args.height, width=args.width, num_frames=args.num_frames,
-        fps=args.fps, seed=args.seed, num_inference_steps=40,
+        fps=args.fps, seed=args.seed, num_inference_steps=args.steps_b,
         guidance_scale=args.guidance_scale, progressive_mode="fullres",
         enable_cache_dit=False, enable_teacache=False, enable_spectrum=False,
         cfg_gate_step=1.0, save_output=True, output_path=str(output_dir),
@@ -63,23 +69,26 @@ def main(args):
         (output_dir / "experiment.json").write_text(json.dumps(dict(
             model_path=args.model_path, prompt_a=args.prompt_a, prompt_b=args.prompt_b,
             settings=settings, cache_id=cache_id, cache_steps=[2, 3, 4],
+            steps_by_run={"a_full": args.steps_a,
+                          "b_chai_kv": args.steps_b, "b_full": args.steps_b},
             block_index=0, cfg_branches=["positive", "negative"],
             cache_format="projected K after QK norm/RoPE; projected V",
             flow_shift=config.flow_shift,
             timestep_schedule=config.wan_timestep_schedule,
         ), indent=2), encoding="utf-8")
 
-        for label, prompt, mode in (
-            ("a_full", args.prompt_a, "record"),
-            ("b_chai_kv", args.prompt_b, "reuse"),
-            ("b_full", args.prompt_b, "off"),
+        for label, prompt, mode, num_steps in (
+            ("a_full", args.prompt_a, "record", args.steps_a),
+            ("b_chai_kv", args.prompt_b, "reuse", args.steps_b),
+            ("b_full", args.prompt_b, "off", args.steps_b),
         ):
             perf_path = output_dir / f"{label}_perf.json"
             report_path = output_dir / f"{label}_kv.json"
             # A new cache ID also prevents accepting reports from an older run.
             started = time.perf_counter()
             result = generator.generate(dict(
-                settings, prompt=prompt, output_file_name=f"{label}.mp4",
+                settings, prompt=prompt, num_inference_steps=num_steps,
+                output_file_name=f"{label}.mp4",
                 perf_dump_path=str(perf_path),
                 wan_chai_kv=dict(mode=mode, cache_id=cache_id,
                                  report_path=str(report_path)),
@@ -89,16 +98,17 @@ def main(args):
                 raise RuntimeError(f"Generation failed: {label}")
             perf = json.loads(perf_path.read_text())
             report = json.loads(report_path.read_text())
-            if len(perf["denoise_steps_ms"]) != 40:
-                raise RuntimeError(f"{label} did not execute 40 denoising steps")
+            if len(perf["denoise_steps_ms"]) != num_steps:
+                raise RuntimeError(f"{label} did not execute {num_steps} denoising steps")
             expected = (6, 0) if mode == "record" else (0, 6) if mode == "reuse" else (0, 0)
             if (report["cache_id"] != cache_id or report["mode"] != mode
-                    or report["block0_calls"] != 80
+                    or report["num_steps"] != num_steps
+                    or report["block0_calls"] != 2 * num_steps
                     or (report["captures"], report["replacements"]) != expected):
                 raise RuntimeError(f"Unexpected K/V audit report: {report}")
             stages = {entry["name"]: entry["duration_ms"] for entry in perf["steps"]}
             rows.append(dict(
-                label=label, actual_steps=40, wall_seconds=elapsed,
+                label=label, actual_steps=num_steps, wall_seconds=elapsed,
                 denoising_ms=stages["DenoisingStage"],
                 decoding_ms=stages["DecodingStage"],
                 captures=report["captures"], replacements=report["replacements"],
@@ -108,7 +118,7 @@ def main(args):
                 writer = csv.DictWriter(f, fieldnames=rows[0].keys())
                 writer.writeheader()
                 writer.writerows(rows)
-            print(f"{label}: 40 steps, {report['captures']} captures, "
+            print(f"{label}: {num_steps} steps, {report['captures']} captures, "
                   f"{report['replacements']} replacements", flush=True)
             del result
     finally:

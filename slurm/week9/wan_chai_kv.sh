@@ -11,11 +11,13 @@ set -euo pipefail
 source "$HOME/cp4101/sglang/slurm/common.sh"
 export OUTPUT_DIR="$SCRATCH/sglang/outputs/week9/wan_chai_kv/${SLURM_JOB_ID:-manual}"
 
-# All three runs use 40 steps. Edit prompts here to try a different pair.
+# Experiment settings. STEPS_B applies to both cached and baseline B.
 MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
 PROMPT_A="A party on a sandy beach beside gentle waves, wide shot."
 PROMPT_B="Gentle waves roll onto an empty sandy beach, wide shot."
 SEED=42
+STEPS_A=40
+STEPS_B=10
 HEIGHT=480
 WIDTH=832
 NUM_FRAMES=81
@@ -29,6 +31,8 @@ python3 -u "$REPO_DIR/slurm/week9/wan_chai_kv.py" \
   --prompt-a "$PROMPT_A" \
   --prompt-b "$PROMPT_B" \
   --seed "$SEED" \
+  --steps-a "$STEPS_A" \
+  --steps-b "$STEPS_B" \
   --height "$HEIGHT" \
   --width "$WIDTH" \
   --num-frames "$NUM_FRAMES" \
