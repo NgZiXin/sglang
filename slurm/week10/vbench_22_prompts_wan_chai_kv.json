@@ -1,0 +1,286 @@
+{
+  "seed": 42,
+  "sample_index": 0,
+  "prompts": [
+    {
+      "prompt_id": "p01_subject_consistency",
+      "group": "subject_consistency",
+      "prompt_en": "a horse galloping across an open field",
+      "dimension": [
+        "subject_consistency",
+        "motion_smoothness",
+        "dynamic_degree"
+      ],
+      "prompt_a": "a horse walking across an open field"
+    },
+    {
+      "prompt_id": "p02_subject_consistency",
+      "group": "subject_consistency",
+      "prompt_en": "a dog running along a sandy beach",
+      "dimension": [
+        "subject_consistency",
+        "motion_smoothness",
+        "dynamic_degree"
+      ],
+      "prompt_a": "a dog digging along a sandy beach"
+    },
+    {
+      "prompt_id": "p03_scene",
+      "group": "scene",
+      "prompt_en": "underwater coral reef",
+      "dimension": [
+        "scene",
+        "background_consistency"
+      ],
+      "auxiliary_info": {
+        "scene": {
+          "scene": {
+            "scene": "underwater coral reef"
+          }
+        }
+      },
+      "prompt_a": "underwater rocky seabed"
+    },
+    {
+      "prompt_id": "p04_scene",
+      "group": "scene",
+      "prompt_en": "a quiet forest path",
+      "dimension": [
+        "scene",
+        "background_consistency"
+      ],
+      "auxiliary_info": {
+        "scene": {
+          "scene": {
+            "scene": "forest path"
+          }
+        }
+      },
+      "prompt_a": "a quiet city street"
+    },
+    {
+      "prompt_id": "p05_temporal_flickering",
+      "group": "temporal_flickering",
+      "prompt_en": "In a still frame, a stop sign",
+      "dimension": [
+        "temporal_flickering"
+      ],
+      "prompt_a": "In a still frame, a speed limit sign"
+    },
+    {
+      "prompt_id": "p06_temporal_flickering",
+      "group": "temporal_flickering",
+      "prompt_en": "In a still frame, a white ceramic vase on a table",
+      "dimension": [
+        "temporal_flickering"
+      ],
+      "prompt_a": "In a still frame, a blue ceramic vase on a table"
+    },
+    {
+      "prompt_id": "p07_object_class",
+      "group": "object_class",
+      "prompt_en": "an elephant",
+      "dimension": [
+        "object_class"
+      ],
+      "auxiliary_info": {
+        "object_class": {
+          "object": "elephant"
+        }
+      },
+      "prompt_a": "a rhinoceros"
+    },
+    {
+      "prompt_id": "p08_object_class",
+      "group": "object_class",
+      "prompt_en": "a zebra",
+      "dimension": [
+        "object_class"
+      ],
+      "auxiliary_info": {
+        "object_class": {
+          "object": "zebra"
+        }
+      },
+      "prompt_a": "a horse"
+    },
+    {
+      "prompt_id": "p09_multiple_objects",
+      "group": "multiple_objects",
+      "prompt_en": "a cat and a dog",
+      "dimension": [
+        "multiple_objects"
+      ],
+      "auxiliary_info": {
+        "multiple_objects": {
+          "object": "cat and dog"
+        }
+      },
+      "prompt_a": "a cat"
+    },
+    {
+      "prompt_id": "p10_multiple_objects",
+      "group": "multiple_objects",
+      "prompt_en": "a bicycle and a car",
+      "dimension": [
+        "multiple_objects"
+      ],
+      "auxiliary_info": {
+        "multiple_objects": {
+          "object": "bicycle and car"
+        }
+      },
+      "prompt_a": "a bicycle"
+    },
+    {
+      "prompt_id": "p11_human_action",
+      "group": "human_action",
+      "prompt_en": "A person is playing piano",
+      "dimension": [
+        "human_action"
+      ],
+      "prompt_a": "A person is playing guitar"
+    },
+    {
+      "prompt_id": "p12_human_action",
+      "group": "human_action",
+      "prompt_en": "A person is playing guitar",
+      "dimension": [
+        "human_action"
+      ],
+      "prompt_a": "A person is playing piano"
+    },
+    {
+      "prompt_id": "p13_color",
+      "group": "color",
+      "prompt_en": "a red car",
+      "dimension": [
+        "color"
+      ],
+      "auxiliary_info": {
+        "color": {
+          "color": "red"
+        }
+      },
+      "prompt_a": "a blue car"
+    },
+    {
+      "prompt_id": "p14_color",
+      "group": "color",
+      "prompt_en": "a blue bicycle",
+      "dimension": [
+        "color"
+      ],
+      "auxiliary_info": {
+        "color": {
+          "color": "blue"
+        }
+      },
+      "prompt_a": "a red bicycle"
+    },
+    {
+      "prompt_id": "p15_spatial_relationship",
+      "group": "spatial_relationship",
+      "prompt_en": "a bicycle on the left of a car, front view",
+      "dimension": [
+        "spatial_relationship"
+      ],
+      "auxiliary_info": {
+        "spatial_relationship": {
+          "spatial_relationship": {
+            "object_a": "bicycle",
+            "object_b": "car",
+            "relationship": "on the left of"
+          }
+        }
+      },
+      "prompt_a": "a bicycle on the right of a car, front view"
+    },
+    {
+      "prompt_id": "p16_spatial_relationship",
+      "group": "spatial_relationship",
+      "prompt_en": "a cat on the right of a dog, front view",
+      "dimension": [
+        "spatial_relationship"
+      ],
+      "auxiliary_info": {
+        "spatial_relationship": {
+          "spatial_relationship": {
+            "object_a": "cat",
+            "object_b": "dog",
+            "relationship": "on the right of"
+          }
+        }
+      },
+      "prompt_a": "a cat on the left of a dog, front view"
+    },
+    {
+      "prompt_id": "p17_appearance_style",
+      "group": "appearance_style",
+      "prompt_en": "The bund Shanghai, Van Gogh style",
+      "dimension": [
+        "appearance_style"
+      ],
+      "auxiliary_info": {
+        "appearance_style": {
+          "appearance_style": "Van Gogh style"
+        }
+      },
+      "prompt_a": "The bund Shanghai, watercolor style"
+    },
+    {
+      "prompt_id": "p18_appearance_style",
+      "group": "appearance_style",
+      "prompt_en": "A mountain lake, watercolor style",
+      "dimension": [
+        "appearance_style"
+      ],
+      "auxiliary_info": {
+        "appearance_style": {
+          "appearance_style": "watercolor style"
+        }
+      },
+      "prompt_a": "A mountain lake, Van Gogh style"
+    },
+    {
+      "prompt_id": "p19_temporal_style",
+      "group": "temporal_style",
+      "prompt_en": "The bund Shanghai, pan left",
+      "dimension": [
+        "temporal_style"
+      ],
+      "prompt_a": "The bund Shanghai, pan right"
+    },
+    {
+      "prompt_id": "p20_temporal_style",
+      "group": "temporal_style",
+      "prompt_en": "A mountain lake, zoom in",
+      "dimension": [
+        "temporal_style"
+      ],
+      "prompt_a": "A mountain lake, zoom out"
+    },
+    {
+      "prompt_id": "p21_overall_consistency",
+      "group": "overall_consistency",
+      "prompt_en": "A panda drinking coffee in a cafe in Paris",
+      "dimension": [
+        "overall_consistency",
+        "aesthetic_quality",
+        "imaging_quality"
+      ],
+      "prompt_a": "A panda drinking tea in a cafe in Paris"
+    },
+    {
+      "prompt_id": "p22_overall_consistency",
+      "group": "overall_consistency",
+      "prompt_en": "A fox reading a newspaper in a quiet library",
+      "dimension": [
+        "overall_consistency",
+        "aesthetic_quality",
+        "imaging_quality"
+      ],
+      "prompt_a": "A fox reading a book in a quiet library"
+    }
+  ]
+}
