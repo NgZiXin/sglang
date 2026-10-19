@@ -4,7 +4,7 @@
 #SBATCH --gres=gpu:h100-96:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=192G
-#SBATCH --time=10:00:00
+#SBATCH --time=3:00:00
 #SBATCH --output=wan-chai-kv-%j.out
 
 set -euo pipefail
