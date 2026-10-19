@@ -34,6 +34,37 @@ def parse_args():
     return args
 
 
+def build_cache_mapping(config, steps_a, steps_b):
+    from sglang.multimodal_gen.runtime.models.schedulers.scheduling_flow_unipc_multistep import (
+        FlowUniPCMultistepScheduler,
+    )
+
+    # Construct exactly the same schedules as WanPipeline. Use sigmas rather
+    # than integer timesteps, which lose precision through truncation.
+    schedules = []
+    for num_steps in (steps_a, steps_b):
+        scheduler = FlowUniPCMultistepScheduler(
+            shift=config.flow_shift, timestep_schedule=config.wan_timestep_schedule,
+        )
+        scheduler.set_timesteps(num_steps, device="cpu")
+        schedules.append(scheduler.sigmas[:-1].tolist())
+    sigmas_a, sigmas_b = schedules
+    # B evaluations 2-4, excluding the terminal sigma from both schedules.
+    source_steps = [
+        min(range(steps_a), key=lambda i: abs(sigmas_a[i] - sigmas_b[j]))
+        for j in (1, 2, 3)
+    ]
+    mapping = [
+        dict(
+            a_step=i + 1, b_step=j + 1,
+            a_sigma=sigmas_a[i], b_sigma=sigmas_b[j],
+            sigma_difference=abs(sigmas_a[i] - sigmas_b[j]),
+        )
+        for i, j in zip(source_steps, (1, 2, 3))
+    ]
+    return source_steps, mapping
+
+
 def main(args):
     from sglang.multimodal_gen.runtime.entrypoints.diffusion_generator import DiffGenerator
 
@@ -66,9 +97,14 @@ def main(args):
         )
         settings["negative_prompt"] = defaults.negative_prompt
         config = generator.server_args.pipeline_config
+        source_steps, cache_mapping = build_cache_mapping(
+            config, args.steps_a, args.steps_b,
+        )
+        print(f"K/V mapping (A -> B): {cache_mapping}", flush=True)
         (output_dir / "experiment.json").write_text(json.dumps(dict(
             model_path=args.model_path, prompt_a=args.prompt_a, prompt_b=args.prompt_b,
             settings=settings, cache_id=cache_id, cache_steps=[2, 3, 4],
+            cache_mapping=cache_mapping, cache_mapping_policy="nearest_sigma",
             steps_by_run={"a_full": args.steps_a,
                           "b_chai_kv": args.steps_b, "b_full": args.steps_b},
             block_index=0, cfg_branches=["positive", "negative"],
@@ -91,6 +127,7 @@ def main(args):
                 output_file_name=f"{label}.mp4",
                 perf_dump_path=str(perf_path),
                 wan_chai_kv=dict(mode=mode, cache_id=cache_id,
+                                 source_steps=source_steps,
                                  report_path=str(report_path)),
             ))
             elapsed = time.perf_counter() - started
@@ -100,8 +137,14 @@ def main(args):
             report = json.loads(report_path.read_text())
             if len(perf["denoise_steps_ms"]) != num_steps:
                 raise RuntimeError(f"{label} did not execute {num_steps} denoising steps")
-            expected = (6, 0) if mode == "record" else (0, 6) if mode == "reuse" else (0, 0)
+            expected = {
+                "record": (2 * len(set(source_steps)), 0),
+                "reuse": (0, 6),
+                "off": (0, 0),
+            }[mode]
             if (report["cache_id"] != cache_id or report["mode"] != mode
+                    or report["source_steps"] != [i + 1 for i in source_steps]
+                    or report["target_steps"] != [2, 3, 4]
                     or report["num_steps"] != num_steps
                     or report["block0_calls"] != 2 * num_steps
                     or (report["captures"], report["replacements"]) != expected):

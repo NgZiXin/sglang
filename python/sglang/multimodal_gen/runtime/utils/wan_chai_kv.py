@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 class WanChaiKVCache:
-    # Human steps 2, 3, 4; only block 0 owns this controller.
+    # B steps 2, 3, 4. A capture steps come from scheduler sigma matching.
     STEPS = (1, 2, 3)
 
     def __init__(self):
@@ -17,9 +17,6 @@ class WanChaiKVCache:
         self.events = []
 
     def _begin(self, request, config):
-        mode = config.get("mode")
-        if mode not in ("record", "reuse", "off"):
-            raise ValueError("wan_chai_kv mode must be record, reuse, or off")
         if request.num_inference_steps < 4:
             raise ValueError("Wan CHAI requires at least 4 steps for steps 2-4 reuse")
         self.num_steps = request.num_inference_steps
@@ -35,19 +32,62 @@ class WanChaiKVCache:
         cache_id = config.get("cache_id")
         if not cache_id or not config.get("report_path"):
             raise ValueError("wan_chai_kv requires cache_id and report_path")
-        signature = (request.height, request.width, request.num_frames)
-        if mode == "reuse":
-            expected = {(step, neg) for step in self.STEPS for neg in (False, True)}
-            if (self.cache_id != cache_id or set(self.entries) != expected
-                    or self.source_signature != signature):
-                raise ValueError("Missing, incomplete, or incompatible A K/V cache")
-        else:
-            self.entries.clear()
-            self.cache_id = cache_id if mode == "record" else None
-            self.source_signature = signature if mode == "record" else None
-        self.request = request
+        # Zero-based A indices, ordered by B steps 2, 3, and 4.
+        source_steps = config.get("source_steps")
+        if (
+            not isinstance(source_steps, list)
+            or len(source_steps) != len(self.STEPS)
+            or any(type(i) is not int or i < 0 for i in source_steps)
+        ):
+            raise ValueError("Wan CHAI requires three valid source step indices")
+        self.source_steps = tuple(source_steps)
         self.calls = set()
         self.events = []
+
+    def record(self, request, step_index, key, value):
+        """Save A's selected K/V tensors and leave A's attention unchanged."""
+        if request is not self.request:
+            if max(self.source_steps) >= self.num_steps:
+                raise ValueError("Wan CHAI source step exceeds A's schedule")
+            self.entries.clear()
+            self.cache_id = request.wan_chai_kv["cache_id"]
+            self.source_signature = (
+                request.height, request.width, request.num_frames, self.source_steps,
+            )
+            # Capture repeated source steps only once per CFG branch.
+            self.step_map = {step: step for step in self.source_steps}
+        if step_index in self.step_map:
+            # K is already normalized and rotated; never rotate it again.
+            call = (step_index, bool(request.is_cfg_negative))
+            self.entries[call] = (key.detach().clone(), value.detach().clone())
+        return key, value
+
+    def reuse(self, request, step_index, key, value):
+        """Use A's cached K/V for B steps 2-4, matching the CFG branch."""
+        if request is not self.request:
+            expected = {(step, neg) for step in self.source_steps for neg in (False, True)}
+            signature = (request.height, request.width, request.num_frames, self.source_steps)
+            if (self.cache_id != request.wan_chai_kv["cache_id"]
+                    or set(self.entries) != expected or self.source_signature != signature):
+                raise ValueError("Missing, incomplete, or incompatible A K/V cache")
+            self.step_map = dict(zip(self.STEPS, self.source_steps))
+        if step_index in self.step_map:
+            source_step = self.step_map[step_index]
+            cached = self.entries[(source_step, bool(request.is_cfg_negative))]
+            for current, saved in zip((key, value), cached):
+                if (current.shape != saved.shape or current.dtype != saved.dtype
+                        or current.device != saved.device):
+                    raise ValueError("A/B K/V shape, dtype, or device mismatch")
+            return cached
+        return key, value
+
+    def off(self, request, step_index, key, value):
+        """Clear A's cache and pass through B's own K/V for the baseline."""
+        if request is not self.request:
+            self.entries.clear()
+            self.cache_id = self.source_signature = None
+            self.step_map = {}
+        return key, value
 
     def apply(self, request, step_index, key, value):
         config = getattr(request, "wan_chai_kv", None)
@@ -56,27 +96,24 @@ class WanChaiKVCache:
             self.entries.clear()
             self.cache_id = self.source_signature = self.request = None
             return key, value
+        mode = config.get("mode")
+        operation = {"record": self.record, "reuse": self.reuse, "off": self.off}.get(mode)
+        if operation is None:
+            raise ValueError("wan_chai_kv mode must be record, reuse, or off")
         if request is not self.request:
             self._begin(request, config)
         negative = bool(request.is_cfg_negative)
         call = (step_index, negative)
         if call in self.calls or not 0 <= step_index < self.num_steps:
             raise ValueError(f"Unexpected Wan CHAI block-0 invocation: {call}")
+        key, value = operation(request, step_index, key, value)
+        self.request = request
         self.calls.add(call)
-        mode = config["mode"]
-        if step_index in self.STEPS and mode != "off":
-            if mode == "record":
-                # K is already normalized and rotated; never rotate it again.
-                self.entries[call] = (key.detach().clone(), value.detach().clone())
-            else:
-                cached = self.entries[call]
-                for current, saved in zip((key, value), cached):
-                    if (current.shape != saved.shape or current.dtype != saved.dtype
-                            or current.device != saved.device):
-                        raise ValueError("A/B K/V shape, dtype, or device mismatch")
-                key, value = cached
+        if step_index in self.step_map:
+            source_step = self.step_map[step_index]
             self.events.append({
                 "step": step_index + 1,
+                "source_step": source_step + 1,
                 "block_index": 0,
                 "branch": "negative" if negative else "positive",
                 "action": mode,
@@ -88,14 +125,17 @@ class WanChaiKVCache:
             expected_calls = {(i, n) for i in range(self.num_steps) for n in (False, True)}
             if self.calls != expected_calls:
                 raise ValueError(f"Wan CHAI did not observe all {self.num_steps} steps and both CFG branches")
-            expected_events = 0 if mode == "off" else 6
+            # Each active step runs once per CFG branch. Off has no active steps.
+            expected_events = 2 * len(self.step_map)
             if len(self.events) != expected_events:
                 raise ValueError("Unexpected Wan CHAI capture/replacement count")
             report = {
                 "mode": mode, "cache_id": config["cache_id"],
                 "num_steps": self.num_steps, "block0_calls": len(self.calls),
-                "captures": len(self.events) if mode == "record" else 0,
-                "replacements": len(self.events) if mode == "reuse" else 0,
+                "source_steps": [i + 1 for i in self.source_steps],
+                "target_steps": [i + 1 for i in self.STEPS],
+                "captures": sum(event["action"] == "record" for event in self.events),
+                "replacements": sum(event["action"] == "reuse" for event in self.events),
                 "cache_bytes": sum(t.numel() * t.element_size()
                                    for pair in self.entries.values() for t in pair),
                 "events": self.events,
