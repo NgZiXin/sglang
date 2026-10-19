@@ -4,12 +4,12 @@
 #SBATCH --gres=gpu:h100-96:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=192G
-#SBATCH --time=3:00:00
+#SBATCH --time=1:00:00
 #SBATCH --output=wan-chai-kv-%j.out
 
 set -euo pipefail
 source "$HOME/cp4101/sglang/slurm/common.sh"
-export OUTPUT_DIR="$SCRATCH/sglang/outputs/week10/wan_chai_kv/${SLURM_JOB_ID:-manual}"
+export OUTPUT_DIR="$SCRATCH/sglang/outputs/week10/wan_chai_kv/additional/${SLURM_JOB_ID:-manual}"
 
 # Fixed experiment settings. A records the cache; B reuses it.
 MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
@@ -39,7 +39,7 @@ for prompt in manifest["prompts"]:
 PY
 )
 
-for FLOW_SHIFT in 3 5 7 9; do
+for FLOW_SHIFT in 9; do
   RUN_DIR="$OUTPUT_DIR/flow_shift_$FLOW_SHIFT"
   mkdir -p "$RUN_DIR/videos"
 
