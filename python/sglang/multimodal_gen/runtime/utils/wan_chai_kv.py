@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 class WanChaiKVCache:
-    # B steps 2, 3, 4. A capture steps come from scheduler sigma matching.
+    # Default B steps 2, 3, 4. A capture steps come from scheduler sigma matching.
     STEPS = (1, 2, 3)
 
     def __init__(self):
@@ -18,7 +18,7 @@ class WanChaiKVCache:
 
     def _begin(self, request, config):
         if request.num_inference_steps < 4:
-            raise ValueError("Wan CHAI requires at least 4 steps for steps 2-4 reuse")
+            raise ValueError("Wan CHAI requires at least 4 denoising steps")
         self.num_steps = request.num_inference_steps
         if not request.do_classifier_free_guidance or request.cfg_gate_step != 1.0:
             raise ValueError("Wan CHAI requires both CFG branches at every step")
@@ -32,14 +32,26 @@ class WanChaiKVCache:
         cache_id = config.get("cache_id")
         if not cache_id or not config.get("report_path"):
             raise ValueError("wan_chai_kv requires cache_id and report_path")
-        # Zero-based A indices, ordered by B steps 2, 3, and 4.
+        # Zero-based B indices; omitted settings retain the original experiment.
+        target_steps = config.get("target_steps", list(self.STEPS))
+        if (
+            not isinstance(target_steps, list)
+            or not target_steps
+            or any(type(i) is not int or i < 0 for i in target_steps)
+            or len(set(target_steps)) != len(target_steps)
+        ):
+            raise ValueError("Wan CHAI requires distinct valid target step indices")
+        self.target_steps = tuple(target_steps)
+        if config.get("mode") in ("reuse", "off") and max(self.target_steps) >= self.num_steps:
+            raise ValueError("Wan CHAI target step exceeds B's schedule")
+        # Zero-based A indices, ordered by the configured B target steps.
         source_steps = config.get("source_steps")
         if (
             not isinstance(source_steps, list)
-            or len(source_steps) != len(self.STEPS)
+            or len(source_steps) != len(self.target_steps)
             or any(type(i) is not int or i < 0 for i in source_steps)
         ):
-            raise ValueError("Wan CHAI requires three valid source step indices")
+            raise ValueError("Wan CHAI requires one valid source step index per target step")
         self.source_steps = tuple(source_steps)
         self.calls = set()
         self.events = []
@@ -63,14 +75,14 @@ class WanChaiKVCache:
         return key, value
 
     def reuse(self, request, step_index, key, value):
-        """Use A's cached K/V for B steps 2-4, matching the CFG branch."""
+        """Use A's cached K/V for the configured B steps, matching the CFG branch."""
         if request is not self.request:
             expected = {(step, neg) for step in self.source_steps for neg in (False, True)}
             signature = (request.height, request.width, request.num_frames, self.source_steps)
             if (self.cache_id != request.wan_chai_kv["cache_id"]
                     or set(self.entries) != expected or self.source_signature != signature):
                 raise ValueError("Missing, incomplete, or incompatible A K/V cache")
-            self.step_map = dict(zip(self.STEPS, self.source_steps))
+            self.step_map = dict(zip(self.target_steps, self.source_steps))
         if step_index in self.step_map:
             source_step = self.step_map[step_index]
             cached = self.entries[(source_step, bool(request.is_cfg_negative))]
@@ -133,7 +145,7 @@ class WanChaiKVCache:
                 "mode": mode, "cache_id": config["cache_id"],
                 "num_steps": self.num_steps, "block0_calls": len(self.calls),
                 "source_steps": [i + 1 for i in self.source_steps],
-                "target_steps": [i + 1 for i in self.STEPS],
+                "target_steps": [i + 1 for i in self.target_steps],
                 "captures": sum(event["action"] == "record" for event in self.events),
                 "replacements": sum(event["action"] == "reuse" for event in self.events),
                 "cache_bytes": sum(t.numel() * t.element_size()
