@@ -219,7 +219,7 @@ class WanT2VCrossAttention(WanSelfAttention):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, is_cross_attention=True)
 
-    def forward(self, x, context, context_lens):
+    def forward(self, x, context, context_lens, chai_mask_cache=None):
         r"""
         Args:
             x(Tensor): Shape [B, L1, C]
@@ -242,6 +242,13 @@ class WanT2VCrossAttention(WanSelfAttention):
 
         v, _ = self.to_v(context)
         v = v.unflatten(2, (self.local_num_heads, self.head_dim))
+
+        if chai_mask_cache is not None:
+            forward_context = get_forward_context()
+            chai_mask_cache.capture_source_mask(
+                forward_context.forward_batch, forward_context.current_timestep,
+                q, k, self.attn.softmax_scale,
+            )
 
         # compute attention
         x = self.attn(q, k, v)
@@ -675,8 +682,13 @@ class WanTransformerBlock(nn.Module):
         ), hidden_states.to(orig_dtype)
 
         # 2. Cross-attention
+        mask_kwargs = {}
+        if (self.chai_kv_first_block and self.chai_kv_cache is not None
+                and isinstance(self.attn2, WanT2VCrossAttention)):
+            mask_kwargs["chai_mask_cache"] = self.chai_kv_cache
         attn_output = self.attn2(
-            norm_hidden_states, context=encoder_hidden_states, context_lens=None
+            norm_hidden_states, context=encoder_hidden_states, context_lens=None,
+            **mask_kwargs,
         )
         norm_hidden_states, hidden_states = self.cross_attn_residual_norm(
             hidden_states, attn_output, 1, c_shift_msa, c_scale_msa
@@ -1116,6 +1128,12 @@ class WanTransformer3DModel(CachableDiT, LayerwiseOffloadableModuleMixin):
         post_patch_num_frames = num_frames // p_t
         post_patch_height = height // p_h
         post_patch_width = width // p_w
+
+        chai_config = getattr(forward_batch, "wan_chai_kv", None)
+        if chai_config is not None and chai_config.get("mask_token_indices") is not None:
+            chai_config["mask_grid_shape"] = [
+                post_patch_num_frames, post_patch_height, post_patch_width,
+            ]
 
         if not sequence_shard_enabled:
             # The rotary embedding layer correctly handles SP offsets internally.

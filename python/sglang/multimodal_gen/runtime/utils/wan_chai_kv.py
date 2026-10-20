@@ -10,6 +10,7 @@ class WanChaiKVCache:
 
     def __init__(self):
         self.entries = {}
+        self.source_masks = {}
         self.cache_id = None
         self.source_signature = None
         self.request = None
@@ -53,8 +54,65 @@ class WanChaiKVCache:
         ):
             raise ValueError("Wan CHAI requires one valid source step index per target step")
         self.source_steps = tuple(source_steps)
+        token_indices = config.get("mask_token_indices")
+        if token_indices is not None:
+            if (not isinstance(token_indices, list) or not token_indices
+                    or any(type(i) is not int or i < 0 for i in token_indices)
+                    or len(set(token_indices)) != len(token_indices)):
+                raise ValueError("mask_token_indices must contain distinct text-token positions")
+            if not 0 < config.get("mask_threshold", 0.5) < 1:
+                raise ValueError("mask_threshold must be between 0 and 1")
         self.calls = set()
         self.events = []
+
+    def capture_source_mask(self, request, step_index, query, key, scale):
+        """Probe positive text attention; do not change the source attention output."""
+        config = request.wan_chai_kv
+        token_indices = config.get("mask_token_indices")
+        if (config["mode"] != "record" or token_indices is None
+                or request.is_cfg_negative or step_index not in self.step_map):
+            return
+        import torch
+
+        if query.shape[0] != 1 or key.shape[0] != 1:
+            raise ValueError("Masked Wan CHAI supports one sample per request")
+        if max(token_indices) >= key.shape[1]:
+            raise ValueError("Mask text-token position exceeds the cross-attention context")
+        # Match live attention, including padded text keys in the denominator.
+        # Q/K arrive as [B, sequence, heads, dim]. Bound the probe's memory.
+        with torch.no_grad():
+            text_key = key.detach().transpose(1, 2).float().transpose(-1, -2)
+            scores = []
+            for chunk in query.detach().split(256, dim=1):
+                logits = (chunk.transpose(1, 2).float() @ text_key) * scale
+                probs = logits.softmax(dim=-1)
+                scores.append(probs[..., token_indices].sum(-1).mean(1))
+            relevance = torch.cat(scores, dim=1)[0]
+            peak, low = relevance.max().item(), relevance.min().item()
+            reason = None
+            if not torch.isfinite(relevance).all().item():
+                reason = "nonfinite_attention"
+            elif peak <= 1e-8 or peak - low <= max(1e-8, peak * 1e-3):
+                reason = "flat_attention"
+            keep = relevance <= config.get("mask_threshold", 0.5) * peak
+            indices = keep.nonzero(as_tuple=True)[0]
+            if not reason and indices.numel() == 0:
+                reason = "empty_cache"
+            info = dict(
+                source_step=step_index + 1, total_tokens=relevance.numel(),
+                kept_tokens=indices.numel(),
+                excluded_fraction=1 - indices.numel() / relevance.numel(),
+                fallback_reason=reason,
+            )
+            self.source_masks[step_index] = (indices, info)
+            path = Path(config["report_path"]).parent / f"source_mask_step_{step_index + 1}.pt"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            torch.save(dict(
+                scores=relevance.cpu(), keep=keep.cpu(),
+                grid_shape=config.get("mask_grid_shape"),
+                token_indices=token_indices,
+                threshold=config.get("mask_threshold", 0.5), **info,
+            ), path)
 
     def record(self, request, step_index, key, value):
         """Save A's selected K/V tensors and leave A's attention unchanged."""
@@ -62,6 +120,7 @@ class WanChaiKVCache:
             if max(self.source_steps) >= self.num_steps:
                 raise ValueError("Wan CHAI source step exceeds A's schedule")
             self.entries.clear()
+            self.source_masks.clear()
             self.cache_id = request.wan_chai_kv["cache_id"]
             self.source_signature = (
                 request.height, request.width, request.num_frames, self.source_steps,
@@ -83,6 +142,8 @@ class WanChaiKVCache:
                     or set(self.entries) != expected or self.source_signature != signature):
                 raise ValueError("Missing, incomplete, or incompatible A K/V cache")
             self.step_map = dict(zip(self.target_steps, self.source_steps))
+            if request.wan_chai_kv.get("mask_cache") and set(self.source_masks) != set(self.source_steps):
+                raise ValueError("Missing source attention masks; record A with mask_token_indices")
         if step_index in self.step_map:
             source_step = self.step_map[step_index]
             cached = self.entries[(source_step, bool(request.is_cfg_negative))]
@@ -90,6 +151,13 @@ class WanChaiKVCache:
                 if (current.shape != saved.shape or current.dtype != saved.dtype
                         or current.device != saved.device):
                     raise ValueError("A/B K/V shape, dtype, or device mismatch")
+            if request.wan_chai_kv.get("mask_cache"):
+                indices, info = self.source_masks[source_step]
+                self.reuse_info = info
+                if info["fallback_reason"]:
+                    return key, value
+                # K already contains its original RoPE; select without re-rotating.
+                return tuple(t.index_select(1, indices).contiguous() for t in cached)
             return cached
         return key, value
 
@@ -97,6 +165,7 @@ class WanChaiKVCache:
         """Clear A's cache and pass through B's own K/V for the baseline."""
         if request is not self.request:
             self.entries.clear()
+            self.source_masks.clear()
             self.cache_id = self.source_signature = None
             self.step_map = {}
         return key, value
@@ -106,6 +175,7 @@ class WanChaiKVCache:
         if config is None:
             # Normal requests never read or retain an experiment's cache.
             self.entries.clear()
+            self.source_masks.clear()
             self.cache_id = self.source_signature = self.request = None
             return key, value
         mode = config.get("mode")
@@ -118,6 +188,7 @@ class WanChaiKVCache:
         call = (step_index, negative)
         if call in self.calls or not 0 <= step_index < self.num_steps:
             raise ValueError(f"Unexpected Wan CHAI block-0 invocation: {call}")
+        self.reuse_info = {}
         key, value = operation(request, step_index, key, value)
         self.request = request
         self.calls.add(call)
@@ -128,10 +199,11 @@ class WanChaiKVCache:
                 "source_step": source_step + 1,
                 "block_index": 0,
                 "branch": "negative" if negative else "positive",
-                "action": mode,
+                "action": "fallback" if self.reuse_info.get("fallback_reason") else mode,
                 "key_shape": list(key.shape),
                 "value_shape": list(value.shape),
                 "dtype": str(key.dtype),
+                **self.reuse_info,
             })
         if step_index == self.num_steps - 1 and negative:
             expected_calls = {(i, n) for i in range(self.num_steps) for n in (False, True)}
@@ -148,6 +220,8 @@ class WanChaiKVCache:
                 "target_steps": [i + 1 for i in self.target_steps],
                 "captures": sum(event["action"] == "record" for event in self.events),
                 "replacements": sum(event["action"] == "reuse" for event in self.events),
+                "fallbacks": sum(event["action"] == "fallback" for event in self.events),
+                "source_masks": [info for _, info in self.source_masks.values()],
                 "cache_bytes": sum(t.numel() * t.element_size()
                                    for pair in self.entries.values() for t in pair),
                 "events": self.events,
