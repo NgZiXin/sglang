@@ -21,6 +21,8 @@ def parse_args():
                         help="Denoising steps for cached B (at least 4)")
     parser.add_argument("--flow-shift", type=float, required=True,
                         help="Flow shift used by both A and B")
+    parser.add_argument("--wan-timestep-schedule", type=int, choices=(0, 1, 2, 3), default=0,
+                        help="Wan timestep schedule used by both A and B")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--height", type=int, default=480)
     parser.add_argument("--width", type=int, default=832)
@@ -89,6 +91,7 @@ def main(args):
         enable_torch_compile=False, enable_breakable_cuda_graph=False,
         warmup_mode="off", attention_backend="fa",
         flow_shift=args.flow_shift,
+        wan_timestep_schedule=args.wan_timestep_schedule,
     )
     rows = []
     try:
