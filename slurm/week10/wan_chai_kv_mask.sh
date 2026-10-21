@@ -9,16 +9,16 @@
 
 set -euo pipefail
 source "$HOME/cp4101/sglang/slurm/common.sh"
-export OUTPUT_DIR="$SCRATCH/sglang/outputs/week10/wan_chai_kv_mask/${SLURM_JOB_ID:-manual}/16_balloons"
+export OUTPUT_DIR="$SCRATCH/sglang/outputs/week10/wan_chai_kv_mask/${SLURM_JOB_ID:-manual}/02_beach_dog"
 setup_sglang_env
 
 # One A and three B videos. All B variants use identical sampling settings.
 # Lower thresholds exclude more cached tokens. 0.5 is an initial experiment.
 python3 -u "$REPO_DIR/slurm/week10/wan_chai_kv_mask.py" \
   --model-path "Wan-AI/Wan2.1-T2V-1.3B-Diffusers" \
-  --prompt-a "A balloon floats above a grassy field in a gentle breeze, low-angle shot." \
-  --prompt-b "A kite floats above a grassy field in a gentle breeze, low-angle shot." \
-  --exclude-word balloon \
+  --prompt-a "A golden retriever runs along a sandy beach beside gentle waves at sunset, side view." \
+  --prompt-b "A golden retriever digs a hole in a sandy beach beside gentle waves at sunset, side view." \
+  --exclude-word "runs" \
   --mask-threshold 0.5 \
   --steps-a 40 \
   --steps-b 10 \

@@ -1,4 +1,4 @@
-"""Balloon-to-kite comparison: original CHAI, source-masked CHAI, and uncached B."""
+"""Beach-dog running-to-digging comparison: original CHAI, source-masked CHAI, and uncached B."""
 
 import argparse
 import csv
@@ -12,9 +12,9 @@ from pathlib import Path
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model-path", default="Wan-AI/Wan2.1-T2V-1.3B-Diffusers")
-    parser.add_argument("--prompt-a", default="A balloon floats above a grassy field in a gentle breeze, low-angle shot.")
-    parser.add_argument("--prompt-b", default="A kite floats above a grassy field in a gentle breeze, low-angle shot.")
-    parser.add_argument("--exclude-word", default="balloon")
+    parser.add_argument("--prompt-a", default="A golden retriever runs along a sandy beach beside gentle waves at sunset, side view.")
+    parser.add_argument("--prompt-b", default="A golden retriever digs a hole in a sandy beach beside gentle waves at sunset, side view.")
+    parser.add_argument("--exclude-word", default="runs")
     parser.add_argument("--mask-threshold", type=float, default=0.5,
                         help="Exclude source tokens above this fraction of peak word attention")
     parser.add_argument("--flow-shift", type=float, default=None)
