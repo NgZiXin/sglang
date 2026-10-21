@@ -16,13 +16,13 @@
     {
       "prompt_id": "p02_subject_consistency",
       "group": "subject_consistency",
-      "prompt_en": "a dog running along a sandy beach",
+      "prompt_en": "a dog running happily",
       "dimension": [
         "subject_consistency",
-        "motion_smoothness",
-        "dynamic_degree"
+        "dynamic_degree",
+        "motion_smoothness"
       ],
-      "prompt_a": "a dog digging along a sandy beach"
+      "prompt_a": "a dog digging happily"
     },
     {
       "prompt_id": "p03_scene",
@@ -44,19 +44,19 @@
     {
       "prompt_id": "p04_scene",
       "group": "scene",
-      "prompt_en": "a quiet forest path",
+      "prompt_en": "forest road",
       "dimension": [
         "scene",
         "background_consistency"
       ],
+      "prompt_a": "forest path",
       "auxiliary_info": {
         "scene": {
           "scene": {
-            "scene": "forest path"
+            "scene": "forest road"
           }
         }
-      },
-      "prompt_a": "a quiet city street"
+      }
     },
     {
       "prompt_id": "p05_temporal_flickering",
@@ -70,11 +70,11 @@
     {
       "prompt_id": "p06_temporal_flickering",
       "group": "temporal_flickering",
-      "prompt_en": "In a still frame, a white ceramic vase on a table",
+      "prompt_en": "A tranquil tableau of a beautiful, handcrafted ceramic bowl",
       "dimension": [
         "temporal_flickering"
       ],
-      "prompt_a": "In a still frame, a blue ceramic vase on a table"
+      "prompt_a": "A tranquil tableau of a beautiful, handcrafted ceramic bowl, watercolor painting"
     },
     {
       "prompt_id": "p07_object_class",
@@ -102,7 +102,7 @@
           "object": "zebra"
         }
       },
-      "prompt_a": "a horse"
+      "prompt_a": "a zebra and a giraffe"
     },
     {
       "prompt_id": "p09_multiple_objects",
@@ -139,16 +139,16 @@
       "dimension": [
         "human_action"
       ],
-      "prompt_a": "A person is playing guitar"
+      "prompt_a": "A person is playing harp"
     },
     {
       "prompt_id": "p12_human_action",
       "group": "human_action",
-      "prompt_en": "A person is playing guitar",
+      "prompt_en": "A person is strumming guitar",
       "dimension": [
         "human_action"
       ],
-      "prompt_a": "A person is playing piano"
+      "prompt_a": "A person is strumming ukulele"
     },
     {
       "prompt_id": "p13_color",
@@ -226,21 +226,21 @@
           "appearance_style": "Van Gogh style"
         }
       },
-      "prompt_a": "The bund Shanghai, watercolor style"
+      "prompt_a": "The bund Shanghai, watercolor painting"
     },
     {
       "prompt_id": "p18_appearance_style",
       "group": "appearance_style",
-      "prompt_en": "A mountain lake, watercolor style",
+      "prompt_en": "A beautiful coastal beach in spring, waves lapping on sand, watercolor painting",
       "dimension": [
         "appearance_style"
       ],
+      "prompt_a": "A beautiful coastal beach in spring, waves lapping on sand, oil painting",
       "auxiliary_info": {
         "appearance_style": {
-          "appearance_style": "watercolor style"
+          "appearance_style": "watercolor painting"
         }
-      },
-      "prompt_a": "A mountain lake, Van Gogh style"
+      }
     },
     {
       "prompt_id": "p19_temporal_style",
@@ -254,11 +254,11 @@
     {
       "prompt_id": "p20_temporal_style",
       "group": "temporal_style",
-      "prompt_en": "A mountain lake, zoom in",
+      "prompt_en": "A beautiful coastal beach in spring, waves lapping on sand, zoom in",
       "dimension": [
         "temporal_style"
       ],
-      "prompt_a": "A mountain lake, zoom out"
+      "prompt_a": "A beautiful coastal beach in spring, waves lapping on sand, zoom out"
     },
     {
       "prompt_id": "p21_overall_consistency",
@@ -269,18 +269,158 @@
         "aesthetic_quality",
         "imaging_quality"
       ],
-      "prompt_a": "A panda drinking tea in a cafe in Paris"
+      "prompt_a": "A panda drinking coffee in a cafe in London"
     },
     {
       "prompt_id": "p22_overall_consistency",
       "group": "overall_consistency",
-      "prompt_en": "A fox reading a newspaper in a quiet library",
+      "prompt_en": "Two pandas discussing an academic paper.",
       "dimension": [
         "overall_consistency",
         "aesthetic_quality",
         "imaging_quality"
       ],
-      "prompt_a": "A fox reading a book in a quiet library"
+      "prompt_a": "Two pandas discussing an academic paper beside a laptop."
+    },
+    {
+      "prompt_id": "p23_subject_consistency",
+      "group": "subject_consistency",
+      "prompt_en": "a person eating a burger",
+      "dimension": [
+        "subject_consistency",
+        "dynamic_degree",
+        "motion_smoothness"
+      ],
+      "prompt_a": "a person holding a burger"
+    },
+    {
+      "prompt_id": "p24_scene",
+      "group": "scene",
+      "prompt_en": "botanical garden",
+      "dimension": [
+        "scene",
+        "background_consistency"
+      ],
+      "auxiliary_info": {
+        "scene": {
+          "scene": {
+            "scene": "botanical garden"
+          }
+        }
+      },
+      "prompt_a": "indoor botanical garden"
+    },
+    {
+      "prompt_id": "p25_temporal_flickering",
+      "group": "temporal_flickering",
+      "prompt_en": "A tranquil tableau of a bowl on the kitchen counter",
+      "dimension": [
+        "temporal_flickering"
+      ],
+      "prompt_a": "A tranquil tableau of a bowl"
+    },
+    {
+      "prompt_id": "p26_object_class",
+      "group": "object_class",
+      "prompt_en": "a bird",
+      "dimension": [
+        "object_class"
+      ],
+      "auxiliary_info": {
+        "object_class": {
+          "object": "bird"
+        }
+      },
+      "prompt_a": "a blue bird"
+    },
+    {
+      "prompt_id": "p27_multiple_objects",
+      "group": "multiple_objects",
+      "prompt_en": "a chair and a couch",
+      "dimension": [
+        "multiple_objects"
+      ],
+      "auxiliary_info": {
+        "multiple_objects": {
+          "object": "chair and couch"
+        }
+      },
+      "prompt_a": "a chair and a couch and a table"
+    },
+    {
+      "prompt_id": "p28_human_action",
+      "group": "human_action",
+      "prompt_en": "A person is riding a bike",
+      "dimension": [
+        "human_action"
+      ],
+      "prompt_a": "A person is pushing a bike"
+    },
+    {
+      "prompt_id": "p29_color",
+      "group": "color",
+      "prompt_en": "a green car",
+      "dimension": [
+        "color"
+      ],
+      "auxiliary_info": {
+        "color": {
+          "color": "green"
+        }
+      },
+      "prompt_a": "a yellow car"
+    },
+    {
+      "prompt_id": "p30_spatial_relationship",
+      "group": "spatial_relationship",
+      "prompt_en": "a bird on the left of a cat, front view",
+      "dimension": [
+        "spatial_relationship"
+      ],
+      "auxiliary_info": {
+        "spatial_relationship": {
+          "spatial_relationship": {
+            "object_a": "bird",
+            "object_b": "cat",
+            "relationship": "on the left of"
+          }
+        }
+      },
+      "prompt_a": "a bird on the left of a dog, front view"
+    },
+    {
+      "prompt_id": "p31_appearance_style",
+      "group": "appearance_style",
+      "prompt_en": "a shark is swimming in the ocean, oil painting",
+      "dimension": [
+        "appearance_style"
+      ],
+      "auxiliary_info": {
+        "appearance_style": {
+          "appearance_style": "oil painting"
+        }
+      },
+      "prompt_a": "a shark is swimming in the ocean, watercolor painting"
+    },
+    {
+      "prompt_id": "p32_temporal_style",
+      "group": "temporal_style",
+      "prompt_en": "a shark is swimming in the ocean, tilt up",
+      "dimension": [
+        "temporal_style"
+      ],
+      "prompt_a": "a shark and a dolphin are swimming in the ocean, tilt up"
+    },
+    {
+      "prompt_id": "p33_overall_consistency",
+      "group": "overall_consistency",
+      "prompt_en": "A cat wearing sunglasses and working as a lifeguard at a pool.",
+      "dimension": [
+        "overall_consistency",
+        "aesthetic_quality",
+        "imaging_quality"
+      ],
+      "prompt_a": "A cat working as a lifeguard at a pool."
     }
   ]
 }
