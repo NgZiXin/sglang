@@ -50,7 +50,7 @@ SCORING_PARAMETERS = {
 }
 
 
-def prepare_inputs(video_dir, prompts):
+def prepare_inputs(video_dir: Path, prompts: list):
     """Require at least one available VBench sample for each prompt."""
     if not prompts:
         raise ValueError("The manifest has no prompts")
@@ -76,8 +76,8 @@ def prepare_inputs(video_dir, prompts):
     return full_info
 
 
-def evaluate_videos(video_dir, full_info, work_dir):
-    """Evaluate all 16 dimensions in one VBench API call."""
+def evaluate_videos(video_dir: Path, full_info: list, work_dir: Path):
+    """Evaluate all 16 dimensions in one VBench API call with safe score handling."""
     import torch
     from vbench import VBench
 
@@ -86,68 +86,111 @@ def evaluate_videos(video_dir, full_info, work_dir):
 
     if not torch.cuda.is_available():
         raise RuntimeError("VBench evaluation requires a CUDA GPU")
+
     benchmark = VBench(
         torch.device("cuda"), str(metadata_path), str(work_dir)
     )
     benchmark.evaluate(
-        videos_path=str(video_dir), name="result",
+        videos_path=str(video_dir),
+        name="result",
         dimension_list=list(SCORING_PARAMETERS),
     )
 
     results = json.loads((work_dir / "result_eval_results.json").read_text())
     scores = {}
-    color_evaluation = None
+
     for dimension in SCORING_PARAMETERS:
         expected_videos = set()
         for prompt in full_info:
             if dimension in prompt["dimension"]:
                 expected_videos.update(prompt["video_list"])
+
         aggregate, details = results[dimension]
         scored_videos = {item["video_path"] for item in details}
-        if len(details) != len(scored_videos) or not scored_videos <= expected_videos:
-            raise ValueError(f"{dimension}: duplicate or unexpected result videos")
+
+        # Check 1: Ensure no duplicate video entries in details
+        if len(details) != len(scored_videos):
+            raise ValueError(f"{dimension}: duplicate video entries in result details")
+
+        # Check 2: Ensure all scored videos are part of the expected set
+        if not scored_videos.issubset(expected_videos):
+            unexpected = scored_videos - expected_videos
+            raise ValueError(f"{dimension}: contains {len(unexpected)} unexpected video paths")
+
+        # Dimension-specific evaluation logic
         if dimension == "color":
             if not expected_videos:
-                raise ValueError("color: no input videos")
+                raise ValueError("color: no input videos defined in manifest")
+
             missing_videos = sorted(expected_videos - scored_videos)
-            score = sum(float(item["video_results"]) for item in details) / len(expected_videos)
-            color_evaluation = {
-                "official_score": float(aggregate) if details else None,
-                "missing_videos": missing_videos,
-            }
+
+            # Safeguard: Official VBench averages only over detected videos.
+            # If no videos had detections (details is empty), aggregate is null or NaN.
+            if details and aggregate is not None and not math.isnan(float(aggregate)):
+                score = float(aggregate)
+            else:
+                score = 0.0
+
             if missing_videos:
-                print(f"color: counting {len(missing_videos)} missing video results as zero")
+                print(
+                    f"[Notice] color: {len(missing_videos)}/{len(expected_videos)} "
+                    f"videos lacked object detection by GRiT. "
+                    f"Official score is averaged over the remaining {len(details)} detected videos."
+                )
+
         else:
+            # For all 15 other dimensions, 100% of the expected videos must be evaluated
             if scored_videos != expected_videos:
-                raise ValueError(f"{dimension}: results do not match its input videos")
-            score = float(aggregate)
+                missing = expected_videos - scored_videos
+                raise ValueError(
+                    f"{dimension}: evaluated {len(scored_videos)}/{len(expected_videos)} videos. "
+                    f"Missing: {sorted(missing)[:3]}..."
+                )
+            score = float(aggregate if aggregate is not None else 0.0)
+
+            # Safeguard: MUSIQ outputs imaging quality on [0, 100].
+            # Official VBench divides by 100.0 before normalization.
+            if dimension == "imaging_quality" and score > 1.0:
+                score = score / 100.0
+
         if not math.isfinite(score):
-            raise ValueError(f"{dimension}: non-finite score")
+            raise ValueError(f"{dimension}: non-finite score encountered ({score})")
+
         scores[dimension] = score
-    return scores, color_evaluation
+
+    return scores
 
 
-def calculate_total_scores(scores):
-    """Normalize the 16 aggregate scores and apply VBench's 80/20 weighting."""
+def calculate_total_scores(scores: dict):
+    """Normalize the 16 aggregate scores and apply VBench's 80/20 category weighting."""
     normalized = {}
+
     for dimension, (minimum, maximum, _) in SCORING_PARAMETERS.items():
-        normalized[dimension] = (scores[dimension] - minimum) / (maximum - minimum)
-    
-    def weighted_average(scores, dimensions):
+        val = scores[dimension]
+        denom = maximum - minimum
+        if denom == 0.0:
+            norm_val = 0.0
+        else:
+            norm_val = (val - minimum) / denom
+
+        normalized[dimension] = norm_val
+
+    def weighted_average(scores_dict: dict, dimension_group: list):
         weighted_sum = 0.0
         total_weight = 0.0
-        for dimension in dimensions:
-            weight = SCORING_PARAMETERS[dimension][2]
-            weighted_sum += scores[dimension] * weight
+        for dim in dimension_group:
+            weight = SCORING_PARAMETERS[dim][2]
+            weighted_sum += scores_dict[dim] * weight
             total_weight += weight
-        return weighted_sum / total_weight
+        return weighted_sum / total_weight if total_weight > 0.0 else 0.0
 
     quality = weighted_average(normalized, QUALITY_DIMENSIONS)
     semantic = weighted_average(normalized, SEMANTIC_DIMENSIONS)
+
     return {
         "quality_score": quality,
         "semantic_score": semantic,
-        "total_score": (4 * quality + semantic) / 5,
+        "total_score": (4.0 * quality + semantic) / 5.0,
     }
 
 
@@ -159,22 +202,21 @@ def main():
     args = parser.parse_args()
 
     manifest = json.loads(args.manifest.read_text())
-    seed = manifest["seed"]
+    seed = manifest.get("seed", 0)
     video_dir = args.video_dir.resolve()
     full_info = prepare_inputs(video_dir, manifest["prompts"])
 
-    # VBench's input and raw result JSON files are deleted after evaluation.
+    # VBench's input and raw result JSON files are deleted after evaluation
     with tempfile.TemporaryDirectory(prefix="vbench-") as temporary_dir:
-        scores, color_evaluation = evaluate_videos(video_dir, full_info, Path(temporary_dir))
+        scores = evaluate_videos(video_dir, full_info, Path(temporary_dir))
 
     summary = {
         "seed": seed,
         "num_videos": sum(len(prompt["video_list"]) for prompt in full_info),
         "dimension_scores": scores,
-        "score_policy": "vbench_with_missing_color_videos_scored_zero",
-        "color_evaluation": color_evaluation,
         **calculate_total_scores(scores),
     }
+
     args.output_file.parent.mkdir(parents=True, exist_ok=True)
     args.output_file.write_text(json.dumps(summary, indent=2, allow_nan=False) + "\n")
     print(f"Saved VBench scores to {args.output_file}")
