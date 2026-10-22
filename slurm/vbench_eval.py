@@ -96,6 +96,7 @@ def evaluate_videos(video_dir, full_info, work_dir):
 
     results = json.loads((work_dir / "result_eval_results.json").read_text())
     scores = {}
+    color_evaluation = None
     for dimension in SCORING_PARAMETERS:
         expected_videos = set()
         for prompt in full_info:
@@ -103,13 +104,27 @@ def evaluate_videos(video_dir, full_info, work_dir):
                 expected_videos.update(prompt["video_list"])
         aggregate, details = results[dimension]
         scored_videos = {item["video_path"] for item in details}
-        if scored_videos != expected_videos or len(details) != len(expected_videos):
-            raise ValueError(f"{dimension}: results do not match its input videos")
-        score = float(aggregate)
+        if len(details) != len(scored_videos) or not scored_videos <= expected_videos:
+            raise ValueError(f"{dimension}: duplicate or unexpected result videos")
+        if dimension == "color":
+            if not expected_videos:
+                raise ValueError("color: no input videos")
+            missing_videos = sorted(expected_videos - scored_videos)
+            score = sum(float(item["video_results"]) for item in details) / len(expected_videos)
+            color_evaluation = {
+                "official_score": float(aggregate) if details else None,
+                "missing_videos": missing_videos,
+            }
+            if missing_videos:
+                print(f"color: counting {len(missing_videos)} missing video results as zero")
+        else:
+            if scored_videos != expected_videos:
+                raise ValueError(f"{dimension}: results do not match its input videos")
+            score = float(aggregate)
         if not math.isfinite(score):
             raise ValueError(f"{dimension}: non-finite score")
         scores[dimension] = score
-    return scores
+    return scores, color_evaluation
 
 
 def calculate_total_scores(scores):
@@ -150,12 +165,14 @@ def main():
 
     # VBench's input and raw result JSON files are deleted after evaluation.
     with tempfile.TemporaryDirectory(prefix="vbench-") as temporary_dir:
-        scores = evaluate_videos(video_dir, full_info, Path(temporary_dir))
+        scores, color_evaluation = evaluate_videos(video_dir, full_info, Path(temporary_dir))
 
     summary = {
         "seed": seed,
         "num_videos": sum(len(prompt["video_list"]) for prompt in full_info),
         "dimension_scores": scores,
+        "score_policy": "vbench_with_missing_color_videos_scored_zero",
+        "color_evaluation": color_evaluation,
         **calculate_total_scores(scores),
     }
     args.output_file.parent.mkdir(parents=True, exist_ok=True)

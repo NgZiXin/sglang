@@ -14,7 +14,7 @@ source "$HOME/cp4101/sglang/slurm/common.sh"
 # Scheduler params
 FLOW_SHIFT=5 # Model default; sets the range before Beta sampling.
 
-OUTPUT_DIR="$SCRATCH/sglang/outputs/week10/vary_denoise"
+OUTPUT_DIR="$SCRATCH/sglang/outputs/week10/vary_denoise_2"
 RUN_ID=1 # Required by perf summary csv
 
 MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
@@ -86,10 +86,26 @@ while IFS=$'\t' read -r LABEL PROMPT SEED SAMPLE_INDEX; do
   append_perf_summary
 done <<< "$PROMPTS"
 
-run_vbench_evaluation \
-  --video-dir "$RUN_DIR/videos" \
-  --manifest "$PROMPT_MANIFEST" \
-  --output-file "$RUN_DIR/vbench_scores.json"
+# Keep evaluation failures local to this batch. The subshell retains errexit
+# so an environment/setup failure cannot fall through into the evaluator.
+set +e
+(
+  set -e
+  run_vbench_evaluation \
+    --video-dir "$RUN_DIR/videos" \
+    --manifest "$PROMPT_MANIFEST" \
+    --output-file "$RUN_DIR/vbench_scores.json"
+) 2>&1 | tee "$RUN_DIR/logs/vbench.log"
+EVALUATION_STATUS=("${PIPESTATUS[@]}")
+set -e
 
-echo "Experiment completed. Outputs and VBench scores: $RUN_DIR"
+if (( EVALUATION_STATUS[0] == 0 && EVALUATION_STATUS[1] == 0 )); then
+  printf '{"status":"completed","evaluation_exit_code":0,"log_exit_code":0,"log_file":"logs/vbench.log"}\n' \
+    > "$RUN_DIR/vbench_status.json"
+  echo "Generation and evaluation completed: $RUN_DIR"
+else
+  printf '{"status":"failed","evaluation_exit_code":%d,"log_exit_code":%d,"log_file":"logs/vbench.log"}\n' \
+    "${EVALUATION_STATUS[0]}" "${EVALUATION_STATUS[1]}" > "$RUN_DIR/vbench_status.json"
+  echo "WARNING: Evaluation failed for ${NUM_INFERENCE_STEPS} steps; generated videos are saved. See $RUN_DIR/logs/vbench.log. Continuing the sweep." >&2
+fi
 done
