@@ -12,7 +12,7 @@ set -euo pipefail
 source "$HOME/cp4101/sglang/slurm/common.sh"
 
 # Scheduler params
-FLOW_SHIFT=5 # Model default; sets the range before Beta sampling.
+FLOW_SHIFT=3 # Model default; sets the range before Beta sampling.
 
 OUTPUT_DIR="$SCRATCH/sglang/outputs/week10/vary_denoise_2"
 RUN_ID=1 # Required by perf summary csv
