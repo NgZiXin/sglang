@@ -14,7 +14,7 @@ source "$HOME/cp4101/sglang/slurm/common.sh"
 # Scheduler params
 FLOW_SHIFT=5 # Model default; sets the range before Beta sampling.
 
-OUTPUT_DIR="$SCRATCH/sglang/outputs/week10/vary_denoise_cache_dit"
+OUTPUT_DIR="$SCRATCH/sglang/outputs/week10/vary_denoise_cache_dit_2"
 RUN_ID=1 # Required by perf summary csv
 CACHE_MISS_RUNS_CSV="$OUTPUT_DIR/cache_miss_runs_${SLURM_JOB_ID}.csv"
 
@@ -34,7 +34,7 @@ export SGLANG_CACHE_DIT_FN=1
 export SGLANG_CACHE_DIT_BN=0
 export SGLANG_CACHE_DIT_WARMUP=4
 export SGLANG_CACHE_DIT_MC=-1
-export SGLANG_CACHE_DIT_RDT=0.24
+export SGLANG_CACHE_DIT_RDT=0.48
 export SGLANG_CACHE_DIT_TAYLORSEER=false
 export SGLANG_CACHE_DIT_TS_ORDER=1
 export SGLANG_CACHE_DIT_SCM_PRESET=none
@@ -47,19 +47,32 @@ import re
 import sys
 
 log_path, csv_path, steps, label, seed = sys.argv[1:]
-pattern = re.compile(r"cache-dit summary: .*?hits=(\d+) calls=(\d+)")
+pattern = re.compile(
+    r"cache-dit summary: .*?context=(\d+) hits=(\d+) calls=(\d+)"
+)
 with open(log_path, encoding="utf-8") as log_file:
     stats = [
-        (int(hits), int(calls))
+        (int(context), int(hits), int(calls))
         for line in log_file
         if (match := pattern.search(line))
-        for hits, calls in [match.groups()]
+        for context, hits, calls in [match.groups()]
     ]
 if not stats:
     raise SystemExit(f"ERROR: No Cache-DiT summary found in {log_path}")
 
-hits = sum(item[0] for item in stats)
-calls = sum(item[1] for item in stats)
+counts = {(hits, calls) for _, hits, calls in stats}
+if len(counts) != 1:
+    raise SystemExit(
+        f"ERROR: Cache-DiT context summaries disagree in {log_path}: {stats}"
+    )
+
+# Cache-DiT logs the same request totals once per context. Use one context
+# rather than summing those duplicate summaries.
+_, hits, calls = stats[0]
+if hits > calls:
+    raise SystemExit(
+        f"ERROR: Cache-DiT hits ({hits}) exceed transformer calls ({calls}) in {log_path}"
+    )
 
 with open(csv_path, "a", newline="", encoding="utf-8") as csv_file:
     writer = csv.writer(csv_file)
@@ -71,7 +84,7 @@ setup_sglang_env
 printf 'num_inference_steps,prompt_id,seed,cache_hits,transformer_calls,cache_misses\n' \
   > "$CACHE_MISS_RUNS_CSV"
 
-for NUM_INFERENCE_STEPS in 10 20 30 40 50 60; do
+for NUM_INFERENCE_STEPS in 40; do
 RUN_DIR="$OUTPUT_DIR/steps_${NUM_INFERENCE_STEPS}_schedule_${WAN_TIMESTEP_SCHEDULE}_shift_${FLOW_SHIFT}_${SLURM_JOB_ID}"
 PROMPT_MANIFEST="$RUN_DIR/prompts.json"
 SUMMARY_CSV="$RUN_DIR/perf_summary.csv"
@@ -131,26 +144,26 @@ while IFS=$'\t' read -r LABEL PROMPT SEED SAMPLE_INDEX; do
 done <<< "$PROMPTS"
 
 # Keep evaluation code available for when VBench is needed again.
-# set +e
-# (
-#   set -e
-#   run_vbench_evaluation \
-#     --video-dir "$RUN_DIR/videos" \
-#     --manifest "$PROMPT_MANIFEST" \
-#     --output-file "$RUN_DIR/vbench_scores.json"
-# ) 2>&1 | tee "$RUN_DIR/logs/vbench.log"
-# EVALUATION_STATUS=("${PIPESTATUS[@]}")
-# set -e
-#
-# if (( EVALUATION_STATUS[0] == 0 && EVALUATION_STATUS[1] == 0 )); then
-#   printf '{"status":"completed","evaluation_exit_code":0,"log_exit_code":0,"log_file":"logs/vbench.log"}\n' \
-#     > "$RUN_DIR/vbench_status.json"
-#   echo "Generation and evaluation completed: $RUN_DIR"
-# else
-#   printf '{"status":"failed","evaluation_exit_code":%d,"log_exit_code":%d,"log_file":"logs/vbench.log"}\n' \
-#     "${EVALUATION_STATUS[0]}" "${EVALUATION_STATUS[1]}" > "$RUN_DIR/vbench_status.json"
-#   echo "WARNING: Evaluation failed for ${NUM_INFERENCE_STEPS} steps; generated videos are saved. See $RUN_DIR/logs/vbench.log. Continuing the sweep." >&2
-# fi
+set +e
+(
+  set -e
+  run_vbench_evaluation \
+    --video-dir "$RUN_DIR/videos" \
+    --manifest "$PROMPT_MANIFEST" \
+    --output-file "$RUN_DIR/vbench_scores.json"
+) 2>&1 | tee "$RUN_DIR/logs/vbench.log"
+EVALUATION_STATUS=("${PIPESTATUS[@]}")
+set -e
+
+if (( EVALUATION_STATUS[0] == 0 && EVALUATION_STATUS[1] == 0 )); then
+  printf '{"status":"completed","evaluation_exit_code":0,"log_exit_code":0,"log_file":"logs/vbench.log"}\n' \
+    > "$RUN_DIR/vbench_status.json"
+  echo "Generation and evaluation completed: $RUN_DIR"
+else
+  printf '{"status":"failed","evaluation_exit_code":%d,"log_exit_code":%d,"log_file":"logs/vbench.log"}\n' \
+    "${EVALUATION_STATUS[0]}" "${EVALUATION_STATUS[1]}" > "$RUN_DIR/vbench_status.json"
+  echo "WARNING: Evaluation failed for ${NUM_INFERENCE_STEPS} steps; generated videos are saved. See $RUN_DIR/logs/vbench.log. Continuing the sweep." >&2
+fi
 done
 
 echo "Cache miss data: $CACHE_MISS_RUNS_CSV"
