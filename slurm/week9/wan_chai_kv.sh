@@ -41,7 +41,6 @@ while IFS='|' read -r PAIR_ID PROMPT_A PROMPT_B; do
     --width "$WIDTH" \
     --num-frames "$NUM_FRAMES" \
     --fps "$FPS" \
-    --guidance-scale "$GUIDANCE_SCALE" \
     --output-dir "$PAIR_OUTPUT_DIR" 2>&1 | tee "$PAIR_OUTPUT_DIR/experiment.log"
 done <<'PROMPT_PAIRS'
 01_city_tram|A tram moves slowly through a cobblestone city square in morning light, wide shot.|A bus moves slowly through a cobblestone city square in morning light, wide shot.
