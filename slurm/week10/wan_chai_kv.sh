@@ -19,7 +19,6 @@ HEIGHT=480
 WIDTH=832
 NUM_FRAMES=81
 FPS=16
-GUIDANCE_SCALE=5.0
 
 setup_sglang_env
 
@@ -39,7 +38,7 @@ for prompt in manifest["prompts"]:
 PY
 )
 
-for FLOW_SHIFT in 9; do
+for FLOW_SHIFT in 5; do
   RUN_DIR="$OUTPUT_DIR/flow_shift_$FLOW_SHIFT"
   mkdir -p "$RUN_DIR/videos"
 
