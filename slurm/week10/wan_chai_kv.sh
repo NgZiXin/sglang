@@ -4,12 +4,12 @@
 #SBATCH --gres=gpu:h100-96:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=192G
-#SBATCH --time=1:00:00
+#SBATCH --time=1:30:00
 #SBATCH --output=wan-chai-kv-%j.out
 
 set -euo pipefail
 source "$HOME/cp4101/sglang/slurm/common.sh"
-export OUTPUT_DIR="$SCRATCH/sglang/outputs/week10/wan_chai_kv/additional/${SLURM_JOB_ID:-manual}"
+export OUTPUT_DIR="$SCRATCH/sglang/outputs/week10/wan_chai_kv_vbench/${SLURM_JOB_ID:-manual}"
 
 # Fixed experiment settings. A records the cache; B reuses it.
 MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
@@ -23,7 +23,7 @@ FPS=16
 setup_sglang_env
 
 PROMPT_MANIFEST="$OUTPUT_DIR/prompts.json"
-cp "$REPO_DIR/slurm/week10/vbench_22_prompts_wan_chai_kv.json" "$PROMPT_MANIFEST"
+cp "$REPO_DIR/slurm/week10/vbench_33_prompts_wan_chai_kv.json" "$PROMPT_MANIFEST"
 
 # prompt_en is the target B prompt used by VBench; prompt_a supplies the cache.
 PROMPTS=$(python3 - "$PROMPT_MANIFEST" <<'PY'
