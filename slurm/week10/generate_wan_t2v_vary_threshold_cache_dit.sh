@@ -14,7 +14,7 @@ source "$HOME/cp4101/sglang/slurm/common.sh"
 # Scheduler params
 FLOW_SHIFT=5
 
-OUTPUT_DIR="$SCRATCH/sglang/outputs/week10/vary_threshold_cache_dit_2"
+OUTPUT_DIR="$SCRATCH/sglang/outputs/week10/vary_threshold_cache_dit_50_steps"
 RUN_ID=1 # Required by perf summary csv
 CACHE_MISS_RUNS_CSV="$OUTPUT_DIR/cache_miss_runs_${SLURM_JOB_ID}.csv"
 
