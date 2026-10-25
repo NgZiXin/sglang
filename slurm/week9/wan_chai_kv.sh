@@ -9,12 +9,12 @@
 
 set -euo pipefail
 source "$HOME/cp4101/sglang/slurm/common.sh"
-export OUTPUT_DIR="$SCRATCH/sglang/outputs/week10/wan_chai_kv_stepb_20/${SLURM_JOB_ID:-manual}"
+export OUTPUT_DIR="$SCRATCH/sglang/outputs/week10/wan_chai_kv_stepb_20_a_40/${SLURM_JOB_ID:-manual}"
 
 # Experiment settings. STEPS_B applies to both cached and baseline B.
 MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
 SEED=42
-STEPS_A=50
+STEPS_A=40
 STEPS_B=20
 HEIGHT=480
 WIDTH=832
