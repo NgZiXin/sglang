@@ -4,7 +4,7 @@
 #SBATCH --gpus=h100-96
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
-#SBATCH --time=4:00:00
+#SBATCH --time=2:00:00
 #SBATCH --output=wan-t2v-%j.out
 
 set -euo pipefail
@@ -12,7 +12,7 @@ set -euo pipefail
 source "$HOME/cp4101/sglang/slurm/common.sh"
 
 # Scheduler params
-FLOW_SHIFTS=(3 5 7) # Sweep across flow-shift values used before Beta sampling.
+FLOW_SHIFTS=(3) # Sweep across flow-shift values used before Beta sampling.
 
 OUTPUT_DIR="$SCRATCH/sglang/outputs/week10/vary_denoise_60_step"
 RUN_ID=1 # Required by perf summary csv
@@ -30,7 +30,7 @@ WAN_TIMESTEP_SCHEDULE=0 # 0=flow shift, 1=early-fine, 2=Beta(0.6, 0.6), 3=Beta(0
 setup_sglang_env
 
 for FLOW_SHIFT in "${FLOW_SHIFTS[@]}"; do
-  for NUM_INFERENCE_STEPS in 60; do
+  for NUM_INFERENCE_STEPS in 50; do
 RUN_DIR="$OUTPUT_DIR/steps_${NUM_INFERENCE_STEPS}_schedule_${WAN_TIMESTEP_SCHEDULE}_shift_${FLOW_SHIFT}_${SLURM_JOB_ID}"
 PROMPT_MANIFEST="$RUN_DIR/prompts.json"
 SUMMARY_CSV="$RUN_DIR/perf_summary.csv"
