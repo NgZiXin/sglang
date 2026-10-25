@@ -60,7 +60,6 @@ for FLOW_SHIFT in 5; do
       --width "$WIDTH" \
       --num-frames "$NUM_FRAMES" \
       --fps "$FPS" \
-      --guidance-scale "$GUIDANCE_SCALE" \
       --output-dir "$PAIR_OUTPUT_DIR" 2>&1 | tee "$PAIR_OUTPUT_DIR/experiment.log"
 
     GENERATED_VIDEO="$PAIR_OUTPUT_DIR/b_chai_kv.mp4"
