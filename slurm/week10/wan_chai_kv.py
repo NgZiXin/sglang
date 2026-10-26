@@ -54,10 +54,12 @@ def build_cache_mapping(config, steps_a, steps_b):
         schedules.append(scheduler.sigmas[:-1].tolist())
     sigmas_a, sigmas_b = schedules
     # B evaluations 2-4, excluding the terminal sigma from both schedules.
-    source_steps = [
-        min(range(steps_a), key=lambda i: abs(sigmas_a[i] - sigmas_b[j]))
-        for j in (1, 2, 3)
-    ]
+    # source_steps = [
+    #     min(range(steps_a), key=lambda i: abs(sigmas_a[i] - sigmas_b[j]))
+    #     for j in (1, 2, 3)
+    # ]
+    # Always cache A evaluations 2-4 (zero-based indices), regardless of noise level.
+    source_steps = [1, 2, 3]
     mapping = [
         dict(
             a_step=i + 1, b_step=j + 1,
@@ -110,7 +112,7 @@ def main(args):
         (output_dir / "experiment.json").write_text(json.dumps(dict(
             model_path=args.model_path, prompt_a=args.prompt_a, prompt_b=args.prompt_b,
             settings=settings, cache_id=cache_id, cache_steps=[2, 3, 4],
-            cache_mapping=cache_mapping, cache_mapping_policy="nearest_sigma",
+            cache_mapping=cache_mapping, cache_mapping_policy="fixed_steps",
             steps_by_run={"a_full": args.steps_a,
                           "b_chai_kv": args.steps_b},
             block_index=0, cfg_branches=["positive", "negative"],
