@@ -32,6 +32,9 @@ class WanChaiKVCache:
         cache_id = config.get("cache_id")
         if not cache_id or not config.get("report_path"):
             raise ValueError("wan_chai_kv requires cache_id and report_path")
+        self.reuse_strategy = config.get("reuse_strategy", "replace")
+        if self.reuse_strategy not in ("replace", "concat"):
+            raise ValueError("Wan CHAI reuse_strategy must be replace or concat")
         # Zero-based B indices; omitted settings retain the original experiment.
         target_steps = config.get("target_steps", list(self.STEPS))
         if (
@@ -90,6 +93,15 @@ class WanChaiKVCache:
                 if (current.shape != saved.shape or current.dtype != saved.dtype
                         or current.device != saved.device):
                     raise ValueError("A/B K/V shape, dtype, or device mismatch")
+            if self.reuse_strategy == "concat":
+                import torch
+
+                # [batch, tokens, heads, head_dim]. Preserve B's queries and
+                # both banks' existing positional encoding; do not rotate again.
+                return (
+                    torch.cat((key, cached[0]), dim=1),
+                    torch.cat((value, cached[1]), dim=1),
+                )
             return cached
         return key, value
 
@@ -118,6 +130,7 @@ class WanChaiKVCache:
         call = (step_index, negative)
         if call in self.calls or not 0 <= step_index < self.num_steps:
             raise ValueError(f"Unexpected Wan CHAI block-0 invocation: {call}")
+        input_tokens = key.shape[1]
         key, value = operation(request, step_index, key, value)
         self.request = request
         self.calls.add(call)
@@ -129,6 +142,8 @@ class WanChaiKVCache:
                 "block_index": 0,
                 "branch": "negative" if negative else "positive",
                 "action": mode,
+                "reuse_strategy": self.reuse_strategy,
+                "input_tokens": input_tokens,
                 "key_shape": list(key.shape),
                 "value_shape": list(value.shape),
                 "dtype": str(key.dtype),
@@ -143,6 +158,7 @@ class WanChaiKVCache:
                 raise ValueError("Unexpected Wan CHAI capture/replacement count")
             report = {
                 "mode": mode, "cache_id": config["cache_id"],
+                "reuse_strategy": self.reuse_strategy,
                 "num_steps": self.num_steps, "block0_calls": len(self.calls),
                 "source_steps": [i + 1 for i in self.source_steps],
                 "target_steps": [i + 1 for i in self.target_steps],
