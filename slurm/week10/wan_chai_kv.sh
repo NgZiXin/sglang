@@ -9,11 +9,11 @@
 
 set -euo pipefail
 source "$HOME/cp4101/sglang/slurm/common.sh"
-export OUTPUT_DIR="$SCRATCH/sglang/outputs/week10/wan_chai_kv_vbench_2/${SLURM_JOB_ID:-manual}"
+export OUTPUT_DIR="$SCRATCH/sglang/outputs/week10/wan_chai_kv_vbench_a_50/${SLURM_JOB_ID:-manual}"
 
 # Fixed experiment settings. A records the cache; B reuses it.
 MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
-STEPS_A=40
+STEPS_A=50
 STEPS_B=10
 HEIGHT=480
 WIDTH=832
