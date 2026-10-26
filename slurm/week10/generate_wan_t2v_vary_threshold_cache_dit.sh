@@ -82,9 +82,9 @@ PY
 setup_sglang_env
 printf 'num_inference_steps,rdt_threshold,prompt_id,seed,cache_hits,transformer_calls,cache_misses\n' \
   > "$CACHE_MISS_RUNS_CSV"
-# 0.15 0.21
+# 0.03 0.09
 for NUM_INFERENCE_STEPS in 50; do
-for RDT_THRESHOLD in 0.03 0.09; do
+for RDT_THRESHOLD in 0.15 0.21; do
 export SGLANG_CACHE_DIT_RDT="$RDT_THRESHOLD"
 RUN_DIR="$OUTPUT_DIR/rdt_${RDT_THRESHOLD}/steps_${NUM_INFERENCE_STEPS}_schedule_${WAN_TIMESTEP_SCHEDULE}_shift_${FLOW_SHIFT}_${SLURM_JOB_ID}"
 PROMPT_MANIFEST="$RUN_DIR/prompts.json"
