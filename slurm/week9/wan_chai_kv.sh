@@ -9,13 +9,13 @@
 
 set -euo pipefail
 source "$HOME/cp4101/sglang/slurm/common.sh"
-export OUTPUT_DIR="$SCRATCH/sglang/outputs/week10/wan_chai_kv_stepb_18_a_50/${SLURM_JOB_ID:-manual}"
+export OUTPUT_DIR="$SCRATCH/sglang/outputs/week10/wan_chai_kv_beach_test/${SLURM_JOB_ID:-manual}"
 
 # Experiment settings. STEPS_B applies to both cached and baseline B.
 MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
 SEED=42
-STEPS_A=50
-STEPS_B=18
+STEPS_A=40
+STEPS_B=10
 HEIGHT=480
 WIDTH=832
 NUM_FRAMES=81
@@ -43,7 +43,7 @@ while IFS='|' read -r PAIR_ID PROMPT_A PROMPT_B; do
     --fps "$FPS" \
     --output-dir "$PAIR_OUTPUT_DIR" 2>&1 | tee "$PAIR_OUTPUT_DIR/experiment.log"
 done <<'PROMPT_PAIRS'
-02_beach_dog|A golden retriever runs along a sandy beach beside gentle waves at sunset, side view.|A golden retriever digs a hole in a sandy beach beside gentle waves at sunset, side view.
+02_red_umbrella|Gentle waves roll onto a sandy beach with a red beach umbrella at sunset, wide shot.|Gentle waves roll onto a sandy beach at sunset, wide shot.
 PROMPT_PAIRS
 
 # 01_city_tram|A tram moves slowly through a cobblestone city square in morning light, wide shot.|A bus moves slowly through a cobblestone city square in morning light, wide shot.
