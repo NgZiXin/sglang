@@ -4,7 +4,7 @@
 #SBATCH --gpus=h100-96
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
-#SBATCH --time=7:30:00
+#SBATCH --time=4:30:00
 #SBATCH --output=wan-t2v-%j.out
 
 set -euo pipefail
@@ -14,7 +14,7 @@ source "$HOME/cp4101/sglang/slurm/common.sh"
 # Scheduler params
 FLOW_SHIFT=5
 
-OUTPUT_DIR="$SCRATCH/sglang/outputs/week10/vary_threshold_cache_dit_50_steps"
+OUTPUT_DIR="$SCRATCH/sglang/outputs/week10/vary_threshold_cache_dit_50_steps_2"
 RUN_ID=1 # Required by perf summary csv
 CACHE_MISS_RUNS_CSV="$OUTPUT_DIR/cache_miss_runs_${SLURM_JOB_ID}.csv"
 
@@ -84,7 +84,7 @@ printf 'num_inference_steps,rdt_threshold,prompt_id,seed,cache_hits,transformer_
   > "$CACHE_MISS_RUNS_CSV"
 
 for NUM_INFERENCE_STEPS in 50; do
-for RDT_THRESHOLD in 0.06 0.12 0.18 0.24 0.30 0.36; do
+for RDT_THRESHOLD in 0.03 0.09 0.15 0.21; do
 export SGLANG_CACHE_DIT_RDT="$RDT_THRESHOLD"
 RUN_DIR="$OUTPUT_DIR/rdt_${RDT_THRESHOLD}/steps_${NUM_INFERENCE_STEPS}_schedule_${WAN_TIMESTEP_SCHEDULE}_shift_${FLOW_SHIFT}_${SLURM_JOB_ID}"
 PROMPT_MANIFEST="$RUN_DIR/prompts.json"
