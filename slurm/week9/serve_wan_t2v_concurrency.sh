@@ -4,18 +4,18 @@
 #SBATCH --gpus=h100-96
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
-#SBATCH --time=8:00:00
+#SBATCH --time=0:30:00
 #SBATCH --output=wan-t2v-concurrency-%j.out
 
 set -euo pipefail
 
 source "$HOME/cp4101/sglang/slurm/common.sh"
 
-OUTPUT_DIR="$SCRATCH/sglang/outputs/week9/serving-concurrency-2"
+OUTPUT_DIR="$SCRATCH/sglang/outputs/week9/serving-concurrency-3"
 MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
-HEIGHT=480
-WIDTH=832
-NUM_FRAMES=33
+HEIGHT=256
+WIDTH=448
+NUM_FRAMES=17
 FPS=16
 NUM_INFERENCE_STEPS=50
 NUM_PROMPTS=2 # Total measured requests at each concurrency level.
