@@ -4,17 +4,18 @@
 #SBATCH --gpus=h100-96
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
-#SBATCH --time=1:15:00
+#SBATCH --time=10:00:00
 #SBATCH --output=wan-t2v-%j.out
 
 set -euo pipefail
 
 source "$HOME/cp4101/sglang/slurm/common.sh"
 
-# Scheduler params
-FLOW_SHIFT=5
+# Fixed generation parameters for the denoising-step and cache-threshold sweeps.
+FLOW_SHIFT=8
+GUIDANCE_SCALE=6
 
-OUTPUT_DIR="$SCRATCH/sglang/outputs/week10/vary_threshold_cache_dit_50_steps_2"
+OUTPUT_DIR="$SCRATCH/sglang/outputs/week11/official/vary_threshold_cache_dit"
 RUN_ID=1 # Required by perf summary csv
 CACHE_MISS_RUNS_CSV="$OUTPUT_DIR/cache_miss_runs_${SLURM_JOB_ID}.csv"
 
@@ -26,7 +27,6 @@ FPS=16
 NUM_GPUS=1
 ULYSSES_DEGREE=1
 RING_DEGREE=1
-WAN_TIMESTEP_SCHEDULE=0 # 0=flow shift, 1=early-fine, 2=Beta(0.6, 0.6), 3=Beta(0.6, 0.4).
 
 # Cache settings
 export CACHE_DIT_LOG_LEVEL=DEBUG
@@ -84,9 +84,9 @@ printf 'num_inference_steps,rdt_threshold,prompt_id,seed,cache_hits,transformer_
   > "$CACHE_MISS_RUNS_CSV"
 
 for NUM_INFERENCE_STEPS in 50; do
-for RDT_THRESHOLD in 0; do
+for RDT_THRESHOLD in 0 0.03 0.06 0.09 0.12; do
 export SGLANG_CACHE_DIT_RDT="$RDT_THRESHOLD"
-RUN_DIR="$OUTPUT_DIR/rdt_${RDT_THRESHOLD}/steps_${NUM_INFERENCE_STEPS}_schedule_${WAN_TIMESTEP_SCHEDULE}_shift_${FLOW_SHIFT}_${SLURM_JOB_ID}"
+RUN_DIR="$OUTPUT_DIR/rdt_${RDT_THRESHOLD}/steps_${NUM_INFERENCE_STEPS}_shift_${FLOW_SHIFT}_${SLURM_JOB_ID}"
 PROMPT_MANIFEST="$RUN_DIR/prompts.json"
 SUMMARY_CSV="$RUN_DIR/perf_summary.csv"
 mkdir -p "$RUN_DIR/videos" "$RUN_DIR/perf" "$RUN_DIR/logs"
@@ -127,7 +127,7 @@ while IFS=$'\t' read -r LABEL PROMPT SEED SAMPLE_INDEX; do
     --fps "$FPS" \
     --num-inference-steps "$NUM_INFERENCE_STEPS" \
     --flow-shift "$FLOW_SHIFT" \
-    --wan-timestep-schedule "$WAN_TIMESTEP_SCHEDULE" \
+    --guidance-scale "$GUIDANCE_SCALE" \
     --seed "$SEED" \
     --enable-cache-dit true \
     --save-output \

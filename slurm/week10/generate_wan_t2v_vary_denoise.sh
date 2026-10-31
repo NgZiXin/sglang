@@ -4,17 +4,18 @@
 #SBATCH --gpus=h100-96
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
-#SBATCH --time=2:00:00
+#SBATCH --time=10:00:00
 #SBATCH --output=wan-t2v-%j.out
 
 set -euo pipefail
 
 source "$HOME/cp4101/sglang/slurm/common.sh"
 
-# Scheduler params
-FLOW_SHIFTS=(5) # Sweep across flow-shift values used before Beta sampling.
+# Fixed generation parameters for the denoising-step sweep.
+FLOW_SHIFT=8
+GUIDANCE_SCALE=6
 
-OUTPUT_DIR="$SCRATCH/sglang/outputs/week10/vary_denoise_60_step"
+OUTPUT_DIR="$SCRATCH/sglang/outputs/week11/official/vary_denoise"
 RUN_ID=1 # Required by perf summary csv
 
 MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
@@ -25,13 +26,11 @@ FPS=16
 NUM_GPUS=1
 ULYSSES_DEGREE=1
 RING_DEGREE=1
-WAN_TIMESTEP_SCHEDULE=0 # 0=flow shift, 1=early-fine, 2=Beta(0.6, 0.6), 3=Beta(0.6, 0.4).
 
 setup_sglang_env
 
-for FLOW_SHIFT in "${FLOW_SHIFTS[@]}"; do
-  for NUM_INFERENCE_STEPS in 60; do
-RUN_DIR="$OUTPUT_DIR/steps_${NUM_INFERENCE_STEPS}_schedule_${WAN_TIMESTEP_SCHEDULE}_shift_${FLOW_SHIFT}_${SLURM_JOB_ID}"
+for NUM_INFERENCE_STEPS in 5 10 20 30 40 50 60; do
+RUN_DIR="$OUTPUT_DIR/steps_${NUM_INFERENCE_STEPS}_shift_${FLOW_SHIFT}_${SLURM_JOB_ID}"
 PROMPT_MANIFEST="$RUN_DIR/prompts.json"
 SUMMARY_CSV="$RUN_DIR/perf_summary.csv"
 mkdir "$RUN_DIR"
@@ -72,7 +71,7 @@ while IFS=$'\t' read -r LABEL PROMPT SEED SAMPLE_INDEX; do
     --fps "$FPS" \
     --num-inference-steps "$NUM_INFERENCE_STEPS" \
     --flow-shift "$FLOW_SHIFT" \
-    --wan-timestep-schedule "$WAN_TIMESTEP_SCHEDULE" \
+    --guidance-scale "$GUIDANCE_SCALE" \
     --seed "$SEED" \
     --enable-cache-dit false \
     --save-output \
@@ -109,5 +108,4 @@ else
     "${EVALUATION_STATUS[0]}" "${EVALUATION_STATUS[1]}" > "$RUN_DIR/vbench_status.json"
   echo "WARNING: Evaluation failed for ${NUM_INFERENCE_STEPS} steps; generated videos are saved. See $RUN_DIR/logs/vbench.log. Continuing the sweep." >&2
 fi
-  done
 done
