@@ -24,13 +24,10 @@ def parse_args():
     parser.add_argument("--width", type=int, default=832)
     parser.add_argument("--num-frames", type=int, default=81)
     parser.add_argument("--fps", type=int, default=16)
-    parser.add_argument("--guidance-scale", type=float, default=5.0)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     if args.steps_a < 4 or args.steps_b < 4:
         parser.error("--steps-a and --steps-b must be at least 4 for steps 2-4 reuse")
-    if args.guidance_scale <= 1:
-        parser.error("--guidance-scale must exceed 1 to exercise both CFG branches")
     return args
 
 
@@ -74,7 +71,7 @@ def main(args):
     settings = dict(
         height=args.height, width=args.width, num_frames=args.num_frames,
         fps=args.fps, seed=args.seed, num_inference_steps=args.steps_b,
-        guidance_scale=args.guidance_scale, progressive_mode="fullres",
+        progressive_mode="fullres",
         enable_cache_dit=False, enable_teacache=False, enable_spectrum=False,
         cfg_gate_step=1.0, save_output=True, output_path=str(output_dir),
     )
