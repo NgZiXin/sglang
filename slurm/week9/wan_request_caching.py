@@ -21,6 +21,10 @@ def parse_args():
     parser.add_argument("--width", type=int, required=True)
     parser.add_argument("--num-frames", type=int, required=True)
     parser.add_argument("--fps", type=int, required=True)
+    parser.add_argument("--flow-shift", type=float, default=None,
+                        help="Override the model's default flow shift for all runs")
+    parser.add_argument("--guidance-scale", type=float, default=None,
+                        help="Override the model's default guidance scale for all runs")
     parser.add_argument("--clip-model", required=True)
     parser.add_argument("--similarity-to-k", type=json.loads, required=True)
     parser.add_argument("--k-override", type=int)
@@ -106,6 +110,9 @@ def main(args):
         flush=True,
     )
 
+    pipeline_overrides = {}
+    if args.flow_shift is not None:
+        pipeline_overrides["flow_shift"] = args.flow_shift
     generator = DiffGenerator.from_pretrained(
         model_path=args.model_path,
         num_gpus=1,
@@ -113,6 +120,7 @@ def main(args):
         ulysses_degree=1,
         ring_degree=1,
         encoder_parallel="replicate",
+        **pipeline_overrides,
     )
     settings = dict(
         height=args.height,
@@ -128,6 +136,8 @@ def main(args):
         save_output=True,
         output_path=str(output_dir),
     )
+    if args.guidance_scale is not None:
+        settings["guidance_scale"] = args.guidance_scale
     rows = []
     b_settings = {}
     negative_prompt_b_append = args.negative_prompt_b_append.strip()
@@ -213,6 +223,7 @@ def main(args):
                 prompt_a=args.prompt_a,
                 prompt_b=args.prompt_b,
                 settings=settings,
+                flow_shift=generator.server_args.pipeline_config.flow_shift,
                 negative_prompt_b_append=negative_prompt_b_append,
                 b_settings=b_settings,
                 clip_model=args.clip_model,

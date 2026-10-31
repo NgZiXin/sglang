@@ -24,6 +24,10 @@ def parse_args():
     parser.add_argument("--width", type=int, default=832)
     parser.add_argument("--num-frames", type=int, default=81)
     parser.add_argument("--fps", type=int, default=16)
+    parser.add_argument("--flow-shift", type=float, default=None,
+                        help="Override the model's default flow shift for all runs")
+    parser.add_argument("--guidance-scale", type=float, default=None,
+                        help="Override the model's default guidance scale for all runs")
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     if args.steps_a < 4 or args.steps_b < 4:
@@ -77,12 +81,18 @@ def main(args):
     )
     if args.negative_prompt is not None:
         settings["negative_prompt"] = args.negative_prompt
+    if args.guidance_scale is not None:
+        settings["guidance_scale"] = args.guidance_scale
+    pipeline_overrides = {}
+    if args.flow_shift is not None:
+        pipeline_overrides["flow_shift"] = args.flow_shift
     generator = DiffGenerator.from_pretrained(
         model_path=args.model_path, num_gpus=1, tp_size=1,
         sp_degree=1, ulysses_degree=1, ring_degree=1,
         encoder_parallel="replicate", enable_cfg_parallel=False,
         enable_torch_compile=False, enable_breakable_cuda_graph=False,
         warmup_mode="off", attention_backend="fa",
+        **pipeline_overrides,
     )
     rows = []
     try:
