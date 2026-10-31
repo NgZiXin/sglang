@@ -2,12 +2,13 @@
 
 Lower mean_l1 / relative_l1 means closer outputs; higher cosine_similarity
 means closer directions. These scores do not establish a safe reuse depth.
-Uses Diffusers directly; no SGLang server or video decoding is needed.
+Uses SGLang's native model loader in one process; video decoding is skipped.
 """
 
 import argparse
 import csv
 import math
+from functools import wraps
 from pathlib import Path
 
 
@@ -77,44 +78,70 @@ def parse_args():
     return parser.parse_args()
 
 
-def first_prediction(pipe, prompt, args):
-    import torch
+def first_prediction(worker, prompt, args):
+    from sglang.multimodal_gen.configs.sample.sampling_params import SamplingParams
+    from sglang.multimodal_gen.runtime.entrypoints.utils import prepare_request
 
+    # A fresh request with the same seed recreates the same starting noise.
+    params = SamplingParams.from_user_sampling_params_args(
+        args.model_path, server_args=worker.server_args,
+        prompt=prompt, negative_prompt=args.negative_prompt, seed=args.seed,
+        height=args.height, width=args.width, num_frames=args.num_frames,
+        num_inference_steps=1, progressive_mode="fullres", save_output=False,
+        enable_cache_dit=False, enable_teacache=False, enable_spectrum=False,
+    )
+    request = prepare_request(worker.server_args, params)
+    pipe = worker.pipeline
+    scheduler = pipe.get_module("scheduler")
     captured = []
-    original_step = pipe.scheduler.step
+    original_step = scheduler.step
 
+    @wraps(original_step)
     def capture_step(model_output, timestep, sample, **kwargs):
-        # WanPipeline has already applied CFG here. Save the flow prediction
+        # SGLang has already applied CFG here. Save the flow prediction
         # BEFORE the scheduler updates the latent, and compare in float32.
         captured.append((model_output.detach().float().cpu(), float(timestep)))
         return original_step(model_output, timestep, sample, **kwargs)
 
-    pipe.scheduler.step = capture_step
+    scheduler.step = capture_step
     try:
-        pipe(
-            prompt=prompt, negative_prompt=args.negative_prompt,
-            height=args.height, width=args.width, num_frames=args.num_frames,
-            num_inference_steps=1,
-            # Reset for EVERY prompt, so A and B get identical starting noise.
-            generator=torch.Generator(device="cuda").manual_seed(args.seed),
-            output_type="latent",  # Skip VAE decoding and video saving.
-        )
+        pipe.forward(request, worker.server_args)
     finally:
-        pipe.scheduler.step = original_step
+        scheduler.step = original_step
     if len(captured) != 1:
         raise RuntimeError(f"Expected one scheduler step, got {len(captured)}")
     return captured[0]
 
 
 def main(args):
-    import torch
-    from diffusers import UniPCMultistepScheduler, WanPipeline
+    from sglang.multimodal_gen.runtime.distributed import cleanup_dist_env_and_memory
+    from sglang.multimodal_gen.runtime.managers.gpu_worker import GPUWorker
+    from sglang.multimodal_gen.runtime.server_args import ServerArgs, set_global_server_args
 
-    pipe = WanPipeline.from_pretrained(args.model_path, torch_dtype=torch.bfloat16)
-    pipe.scheduler = UniPCMultistepScheduler.from_config(
-        pipe.scheduler.config, flow_shift=args.flow_shift,
+    server_args = ServerArgs.from_kwargs(
+        model_path=args.model_path, backend="sglang",
+        num_gpus=1, tp_size=1, sp_degree=1, ulysses_degree=1, ring_degree=1,
+        encoder_parallel="replicate", enable_cfg_parallel=False,
+        enable_torch_compile=False, enable_breakable_cuda_graph=False,
+        warmup_mode="off", attention_backend="fa", flow_shift=args.flow_shift,
     )
-    pipe.to("cuda")
+    set_global_server_args(server_args)
+    try:
+        # Same native worker/loader as SGLang generation, kept in this process
+        # so the scheduler prediction can be captured without server IPC.
+        worker = GPUWorker(local_rank=0, rank=0,
+                           master_port=server_args.master_port, server_args=server_args)
+        # Stop after denoising; there is no need to decode or save a video.
+        decoding_stage = worker.pipeline.get_stage("decoding_stage")
+        worker.pipeline.stages.remove(decoding_stage)
+        log_pairs(worker, args)
+    finally:
+        cleanup_dist_env_and_memory()
+
+
+def log_pairs(worker, args):
+    import torch
+
     print(f"Model={args.model_path}, seed={args.seed}, steps=1, "
           f"size={args.width}x{args.height}, frames={args.num_frames}, "
           f"flow_shift={args.flow_shift}", flush=True)
@@ -127,8 +154,8 @@ def main(args):
                          "cosine_similarity", "prompt_a", "prompt_b"])
         for pair_id, prompt_a, prompt_b in PROMPT_PAIRS:
             print(f"\n{pair_id}\nA: {prompt_a}\nB: {prompt_b}", flush=True)
-            a, timestep_a = first_prediction(pipe, prompt_a, args)
-            b, timestep_b = first_prediction(pipe, prompt_b, args)
+            a, timestep_a = first_prediction(worker, prompt_a, args)
+            b, timestep_b = first_prediction(worker, prompt_b, args)
             if timestep_a != timestep_b or a.shape != b.shape:
                 raise RuntimeError("A and B must have the same timestep and output shape")
 
