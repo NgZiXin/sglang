@@ -20,7 +20,7 @@ FLOW_SHIFT=5.0
 
 setup_sglang_env
 
-# The Python script fixes num_inference_steps=1 and skips video decoding.
+# Normal SGLang generation with one step and an optional prediction snapshot.
 python3 -u "$REPO_DIR/slurm/week11/wan_step1_similarity.py" \
   --model-path "$MODEL_PATH" \
   --output-csv "$OUTPUT_DIR/similarity.csv" \
