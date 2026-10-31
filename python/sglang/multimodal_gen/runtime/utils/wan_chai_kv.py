@@ -45,6 +45,18 @@ class WanChaiKVCache:
         ):
             raise ValueError("Wan CHAI requires distinct valid target step indices")
         self.target_steps = tuple(target_steps)
+        # Concat selected B steps; other target steps replace with A's K/V.
+        concat_steps = config.get(
+            "concat_steps", target_steps if self.reuse_strategy == "concat" else [],
+        )
+        if (
+            not isinstance(concat_steps, list)
+            or any(type(i) is not int or i not in self.target_steps for i in concat_steps)
+            or len(set(concat_steps)) != len(concat_steps)
+            or (concat_steps and self.reuse_strategy != "concat")
+        ):
+            raise ValueError("Wan CHAI concat_steps must be distinct target steps in concat mode")
+        self.concat_steps = tuple(concat_steps)
         if config.get("mode") in ("reuse", "off") and max(self.target_steps) >= self.num_steps:
             raise ValueError("Wan CHAI target step exceeds B's schedule")
         # Zero-based A indices, ordered by the configured B target steps.
@@ -93,7 +105,7 @@ class WanChaiKVCache:
                 if (current.shape != saved.shape or current.dtype != saved.dtype
                         or current.device != saved.device):
                     raise ValueError("A/B K/V shape, dtype, or device mismatch")
-            if self.reuse_strategy == "concat":
+            if step_index in self.concat_steps:
                 import torch
 
                 # [batch, tokens, heads, head_dim]. Preserve B's queries and
@@ -142,7 +154,9 @@ class WanChaiKVCache:
                 "block_index": 0,
                 "branch": "negative" if negative else "positive",
                 "action": mode,
-                "reuse_strategy": self.reuse_strategy,
+                "reuse_strategy": (
+                    "concat" if step_index in self.concat_steps else "replace"
+                ) if mode == "reuse" else self.reuse_strategy,
                 "input_tokens": input_tokens,
                 "key_shape": list(key.shape),
                 "value_shape": list(value.shape),
@@ -162,6 +176,7 @@ class WanChaiKVCache:
                 "num_steps": self.num_steps, "block0_calls": len(self.calls),
                 "source_steps": [i + 1 for i in self.source_steps],
                 "target_steps": [i + 1 for i in self.target_steps],
+                "concat_steps": [i + 1 for i in self.concat_steps],
                 "captures": sum(event["action"] == "record" for event in self.events),
                 "replacements": sum(event["action"] == "reuse" for event in self.events),
                 "cache_bytes": sum(t.numel() * t.element_size()
