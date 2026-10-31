@@ -15,7 +15,7 @@ export OUTPUT_DIR="$SCRATCH/sglang/outputs/week11/wan_chai_kv/${SLURM_JOB_ID:-ma
 MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
 SEED=42
 STEPS_A=50
-STEPS_B=10
+STEPS_B=12
 HEIGHT=480
 WIDTH=832
 NUM_FRAMES=81
@@ -46,7 +46,7 @@ done <<'PROMPT_PAIRS'
 01_add_vase|Sunlight falls across a wooden table in a quiet dining room, fixed camera.|Sunlight falls across a wooden table with a ceramic vase in a quiet dining room, fixed camera.
 02_city_tram|A tram moves slowly through a cobblestone city square in morning light, wide shot.|A bus moves slowly through a cobblestone city square in morning light, wide shot.
 03_beach_dog|A golden retriever runs along a sandy beach beside gentle waves at sunset, side view.|A golden retriever digs a hole in a sandy beach beside gentle waves at sunset, side view.
-04_park_fountain|Water splashes from a stone fountain in a quiet park, fixed camera.|Water splashes from a stone fountain in a quiet courtyard, fixed camera.
+04_desert_car|A red car drives along a winding road through a sandy desert at sunset, wide shot.|A red car drives along a winding road through a snowy mountain valley at sunset, wide shot.
 05_add_basket|A cyclist rides along a quiet city street in daylight, side tracking shot.|A cyclist with a wicker basket on the bicycle rides along a quiet city street in daylight, side tracking shot.
 06_snowy_cabin|Snow falls around a wooden cabin in a pine forest, fixed camera.|Snow falls around a camping tent in a pine forest, fixed camera.
 07_refine_car_colour|A silver car drives along a coastal road beneath a clear sky, side tracking shot.|A red car drives along a coastal road beneath a clear sky, side tracking shot.
