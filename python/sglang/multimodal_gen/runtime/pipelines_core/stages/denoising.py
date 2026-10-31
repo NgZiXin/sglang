@@ -15,7 +15,6 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field, fields
 from enum import Enum
 from functools import lru_cache
-from pathlib import Path
 from typing import Any
 
 import torch
@@ -1535,19 +1534,6 @@ class DenoisingStage(PipelineStage, RolloutDenoisingMixin):
             )
         if server_args.comfyui_mode:
             batch.noise_pred = noise_pred
-
-        # Optional observation only: preserve the normal generation path.
-        prediction_path = batch.sampling_params.wan_step1_prediction_path
-        if prediction_path and step.step_index == 0 and not batch.is_warmup:
-            if server_args.num_gpus != 1 or batch.batch_size != 1:
-                raise ValueError("First-step prediction export requires one GPU and one output")
-            destination = Path(prediction_path)
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            torch.save({
-                "prediction": noise_pred.detach().float().cpu(),
-                "timestep": float(step.t_device),
-                "seed": batch.seed,
-            }, destination)
 
         # 5. Advance the scheduler state with the predicted noise.
         with maybe_nvtx_range("scheduler_step", use_nvtx):

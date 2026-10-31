@@ -2,12 +2,13 @@
 
 Lower mean_l1 / relative_l1 means closer outputs; higher cosine_similarity
 means closer directions. These scores do not establish a safe reuse depth.
-Uses the normal SGLang DiffGenerator path, including decoding; no video is saved.
+Uses SGLang's native model loader in one process; video decoding is skipped.
 """
 
 import argparse
 import csv
 import math
+from functools import wraps
 from pathlib import Path
 
 
@@ -77,50 +78,68 @@ def parse_args():
     return parser.parse_args()
 
 
-def first_prediction(generator, prompt, args, label):
-    import torch
+def first_prediction(worker, prompt, args):
+    from sglang.multimodal_gen.configs.sample.sampling_params import SamplingParams
+    from sglang.multimodal_gen.runtime.entrypoints.utils import prepare_request
 
-    path = args.output_csv.resolve().parent / "predictions" / f"{label}.pt"
-    path.unlink(missing_ok=True)  # Never accept a snapshot from an earlier run.
-    result = generator.generate(dict(
+    # A fresh request with the same seed recreates the same starting noise.
+    params = SamplingParams.from_user_sampling_params_args(
+        args.model_path, server_args=worker.server_args,
         prompt=prompt, negative_prompt=args.negative_prompt, seed=args.seed,
         height=args.height, width=args.width, num_frames=args.num_frames,
-        num_inference_steps=1, save_output=False,
+        num_inference_steps=1, progressive_mode="fullres", save_output=False,
         enable_cache_dit=False, enable_teacache=False, enable_spectrum=False,
-        wan_step1_prediction_path=str(path),
-    ))
-    if result is None or not path.is_file():
-        raise RuntimeError(f"{label}: generation or prediction export failed; see SGLang logs")
-    saved = torch.load(path, map_location="cpu", weights_only=True)
-    prediction = saved["prediction"]
-    if not torch.isfinite(prediction).all():
-        raise RuntimeError(
-            f"{label}: guided prediction contains "
-            f"{torch.isnan(prediction).sum().item()} NaNs and "
-            f"{torch.isinf(prediction).sum().item()} infinities. Snapshot: {path}"
-        )
-    if saved["seed"] != args.seed:
-        raise RuntimeError(f"{label}: exported seed does not match the requested seed")
-    return prediction, saved["timestep"]
+    )
+    request = prepare_request(worker.server_args, params)
+    pipe = worker.pipeline
+    scheduler = pipe.get_module("scheduler")
+    captured = []
+    original_step = scheduler.step
+
+    @wraps(original_step)
+    def capture_step(model_output, timestep, sample, **kwargs):
+        # SGLang has already applied CFG here. Save the flow prediction
+        # BEFORE the scheduler updates the latent, and compare in float32.
+        captured.append((model_output.detach().float().cpu(), float(timestep)))
+        return original_step(model_output, timestep, sample, **kwargs)
+
+    scheduler.step = capture_step
+    try:
+        pipe.forward(request, worker.server_args)
+    finally:
+        scheduler.step = original_step
+    if len(captured) != 1:
+        raise RuntimeError(f"Expected one scheduler step, got {len(captured)}")
+    return captured[0]
 
 
 def main(args):
-    from sglang.multimodal_gen.runtime.entrypoints.diffusion_generator import DiffGenerator
+    from sglang.multimodal_gen.runtime.distributed import cleanup_dist_env_and_memory
+    from sglang.multimodal_gen.runtime.managers.gpu_worker import GPUWorker
+    from sglang.multimodal_gen.runtime.server_args import ServerArgs, set_global_server_args
 
-    generator = DiffGenerator.from_pretrained(
+    server_args = ServerArgs.from_kwargs(
         model_path=args.model_path, backend="sglang",
         num_gpus=1, tp_size=1, sp_degree=1, ulysses_degree=1, ring_degree=1,
         encoder_parallel="replicate", enable_cfg_parallel=False,
         enable_torch_compile=False, enable_breakable_cuda_graph=False,
         warmup_mode="off", attention_backend="fa", flow_shift=args.flow_shift,
     )
+    set_global_server_args(server_args)
     try:
-        log_pairs(generator, args)
+        # Same native worker/loader as SGLang generation, kept in this process
+        # so the scheduler prediction can be captured without server IPC.
+        worker = GPUWorker(local_rank=0, rank=0,
+                           master_port=server_args.master_port, server_args=server_args)
+        # Stop after denoising; there is no need to decode or save a video.
+        decoding_stage = worker.pipeline.get_stage("decoding_stage")
+        worker.pipeline.stages.remove(decoding_stage)
+        log_pairs(worker, args)
     finally:
-        generator.shutdown()
+        cleanup_dist_env_and_memory()
 
 
-def log_pairs(generator, args):
+def log_pairs(worker, args):
     import torch
 
     print(f"Model={args.model_path}, seed={args.seed}, steps=1, "
@@ -135,9 +154,8 @@ def log_pairs(generator, args):
                          "cosine_similarity", "prompt_a", "prompt_b"])
         for pair_id, prompt_a, prompt_b in PROMPT_PAIRS:
             print(f"\n{pair_id}\nA: {prompt_a}\nB: {prompt_b}", flush=True)
-            # A new generate call resets the same seed for both prompts.
-            a, timestep_a = first_prediction(generator, prompt_a, args, f"{pair_id}_A")
-            b, timestep_b = first_prediction(generator, prompt_b, args, f"{pair_id}_B")
+            a, timestep_a = first_prediction(worker, prompt_a, args)
+            b, timestep_b = first_prediction(worker, prompt_b, args)
             if timestep_a != timestep_b or a.shape != b.shape:
                 raise RuntimeError("A and B must have the same timestep and output shape")
 

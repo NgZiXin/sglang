@@ -219,8 +219,6 @@ class SamplingParams:
     # BCTHW final latents, not pixels or transformer activation caches.
     wan_init_latent_path: str | None = None
     wan_save_latent_path: str | None = None
-    # Optional first-step guided prediction snapshot for offline comparison.
-    wan_step1_prediction_path: str | None = None
     wan_refine_sigma: float | None = None
     wan_refine_schedule: str = "rescale"
 
@@ -1072,11 +1070,6 @@ class SamplingParams:
         )
 
         # Offline Wan 2.1 draft/refinement experiments.
-        add_argument(
-            "--wan-step1-prediction-path",
-            type=str,
-            help="Save the first guided denoiser prediction before the scheduler update (single GPU).",
-        )
         add_argument(
             "--wan-save-latent-path",
             type=str,
