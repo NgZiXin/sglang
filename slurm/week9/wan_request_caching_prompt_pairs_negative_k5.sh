@@ -19,7 +19,6 @@ HEIGHT=480
 WIDTH=832
 NUM_FRAMES=81
 FPS=16
-GUIDANCE_SCALE=5.0
 CLIP_MODEL="openai/clip-vit-large-patch14"
 # Legacy selection arguments are accepted but ignored: the runner hard-codes k=5.
 SIMILARITY_TO_K='[[0.95,25],[0.90,20],[0.85,15],[0.75,10],[0.65,5]]'
@@ -49,7 +48,6 @@ while IFS='|' read -r PAIR_ID PROMPT_A PROMPT_B NEGATIVE_APPEND; do
     --width "$WIDTH" \
     --num-frames "$NUM_FRAMES" \
     --fps "$FPS" \
-    --guidance-scale "$GUIDANCE_SCALE" \
     --clip-model "$CLIP_MODEL" \
     --similarity-to-k "$SIMILARITY_TO_K" \
     --output-dir "$PAIR_OUTPUT_DIR" \

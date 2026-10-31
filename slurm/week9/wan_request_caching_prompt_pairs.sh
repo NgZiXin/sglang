@@ -4,36 +4,28 @@
 #SBATCH --gres=gpu:h100-96:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=192G
-#SBATCH --time=10:00:00
+#SBATCH --time=2:30:00
 #SBATCH --output=wan-request-caching-pairs-%j.out
 
 set -euo pipefail
 source "$HOME/cp4101/sglang/slurm/common.sh"
-export OUTPUT_DIR="$SCRATCH/sglang/outputs/week9/wan_request_caching_prompt_pairs/${SLURM_JOB_ID:-manual}"
+export OUTPUT_DIR="$SCRATCH/sglang/outputs/week11/wan_request_caching_prompt_pairs/${SLURM_JOB_ID:-manual}"
 
 # One seed per pair, shared by A, cached B, and the full B baseline.
 MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
 SEED=42
-NUM_INFERENCE_STEPS=40
+NUM_INFERENCE_STEPS=50
 HEIGHT=480
 WIDTH=832
 NUM_FRAMES=81
 FPS=16
-GUIDANCE_SCALE=5.0
+# Required by the Python CLI; the runner currently hardcodes k=5.
 CLIP_MODEL="openai/clip-vit-large-patch14"
-# Paper Figure 10; initial thresholds, not calibrated for Wan video generation.
 SIMILARITY_TO_K='[[0.95,25],[0.90,20],[0.85,15],[0.75,10],[0.65,5]]'
-K_OVERRIDE="" # Empty uses similarity; set e.g. 15 for a fixed-k experiment.
 
 setup_sglang_env
 
-EXTRA_ARGS=()
-if [[ -n "$K_OVERRIDE" ]]; then
-  EXTRA_ARGS+=(--k-override "$K_OVERRIDE")
-fi
-
 # Each row below is pair_id|prompt_A|prompt_B. Keep pipes out of prompts.
-# B changes the motion, an object, or the scene while keeping related visual context.
 while IFS='|' read -r PAIR_ID PROMPT_A PROMPT_B; do
   PAIR_OUTPUT_DIR="$OUTPUT_DIR/${PAIR_ID}/seed_$SEED"
   mkdir -p "$PAIR_OUTPUT_DIR"
@@ -50,47 +42,16 @@ while IFS='|' read -r PAIR_ID PROMPT_A PROMPT_B; do
     --width "$WIDTH" \
     --num-frames "$NUM_FRAMES" \
     --fps "$FPS" \
-    --guidance-scale "$GUIDANCE_SCALE" \
     --clip-model "$CLIP_MODEL" \
     --similarity-to-k "$SIMILARITY_TO_K" \
-    --output-dir "$PAIR_OUTPUT_DIR" \
-    "${EXTRA_ARGS[@]}" 2>&1 | tee "$PAIR_OUTPUT_DIR/experiment.log"
+    --output-dir "$PAIR_OUTPUT_DIR" 2>&1 | tee "$PAIR_OUTPUT_DIR/experiment.log"
 done <<'PROMPT_PAIRS'
 01_add_vase|Sunlight falls across a wooden table in a quiet dining room, fixed camera.|Sunlight falls across a wooden table with a ceramic vase in a quiet dining room, fixed camera.
-02_add_boat|Gentle ripples move across a calm lake beneath misty mountains, wide shot.|Gentle ripples move across a calm lake with a small wooden boat beneath misty mountains, wide shot.
-03_add_bench|Leaves sway beside a tree-lined park path in soft morning light, wide shot.|Leaves sway beside a tree-lined park path with a wooden bench in soft morning light, wide shot.
-04_add_basket|A cyclist rides along a quiet city street in daylight, side tracking shot.|A cyclist with a wicker basket on the bicycle rides along a quiet city street in daylight, side tracking shot.
-05_add_spoon|Steam rises from a ceramic cup of coffee on a wooden cafe table, close-up shot.|Steam rises from a ceramic cup of coffee on a wooden cafe table with a silver spoon, close-up shot.
-06_remove_umbrella|Gentle waves roll onto a sandy beach with a red beach umbrella at sunset, wide shot.|Gentle waves roll onto a sandy beach at sunset, wide shot.
-07_remove_backpack|A hiker with a backpack walks along a rocky mountain trail under a clear sky, rear view.|A hiker walks along a rocky mountain trail under a clear sky, rear view.
-08_remove_lamp|Rain falls outside a window beside an armchair with a floor lamp in a cozy living room, fixed camera.|Rain falls outside a window beside an armchair in a cozy living room, fixed camera.
-09_remove_ball|A golden retriever sits beside a tennis ball on a grassy lawn in daylight, medium shot.|A golden retriever sits on a grassy lawn in daylight, medium shot.
-10_remove_hat|A woman wearing a straw hat walks past a fruit stall at an outdoor market in daylight, medium shot.|A woman walks past a fruit stall at an outdoor market in daylight, medium shot.
-11_refine_tram_colour|A red tram moves slowly through a cobblestone city square in morning light, wide shot.|A blue tram moves slowly through a cobblestone city square in morning light, wide shot.
-12_refine_cup_colour|Steam rises from a white ceramic cup of coffee on a wooden cafe table, close-up shot.|Steam rises from a black ceramic cup of coffee on a wooden cafe table, close-up shot.
-13_refine_umbrella_colour|A person holding a yellow umbrella walks along a rain-soaked city sidewalk at night, tracking shot.|A person holding a purple umbrella walks along a rain-soaked city sidewalk at night, tracking shot.
-14_refine_balloon_colour|A green balloon floats above a grassy field in a gentle breeze, low-angle shot.|A pink balloon floats above a grassy field in a gentle breeze, low-angle shot.
-15_refine_car_colour|A silver car drives along a coastal road beneath a clear sky, side tracking shot.|A red car drives along a coastal road beneath a clear sky, side tracking shot.
+02_city_tram|A tram moves slowly through a cobblestone city square in morning light, wide shot.|A bus moves slowly through a cobblestone city square in morning light, wide shot.
+03_beach_dog|A golden retriever runs along a sandy beach beside gentle waves at sunset, side view.|A golden retriever digs a hole in a sandy beach beside gentle waves at sunset, side view.
+04_park_fountain|Water splashes from a stone fountain in a quiet park lined with trees, fixed camera.|Water splashes from a stone fountain in a quiet courtyard lined with arches, fixed camera.
+05_park_cyclist|A cyclist rides along a tree-lined park path in daylight, tracking shot.|A cyclist rides along a canal towpath in daylight, tracking shot.
+06_snowy_cabin|Snow falls around a wooden cabin in a pine forest, fixed camera.|Snow falls around a camping tent in a pine forest, fixed camera.
+07_refine_car_colour|A silver car drives along a coastal road beneath a clear sky, side tracking shot.|A red car drives along a coastal road beneath a clear sky, side tracking shot.
+08_remove_umbrella|Gentle waves roll onto a sandy beach with a red beach umbrella at sunset, wide shot.|Gentle waves roll onto a sandy beach at sunset, wide shot.
 PROMPT_PAIRS
-
-# Original prompt pairs (disabled).
-# 01_city_tram|A tram moves slowly through a cobblestone city square in morning light, wide shot.|A bus moves slowly through a cobblestone city square in morning light, wide shot.
-# 02_beach_dog|A golden retriever runs along a sandy beach beside gentle waves at sunset, side view.|A golden retriever digs a hole in a sandy beach beside gentle waves at sunset, side view.
-# 03_window_cat|A cat sits on a windowsill watching rain fall outside, medium shot.|A cat jumps down from a windowsill while rain falls outside, medium shot.
-# 04_park_cyclist|A cyclist rides along a tree-lined park path in daylight, tracking shot.|A cyclist rides along a canal towpath in daylight, tracking shot.
-# 05_coffee_cup|A hand pours coffee from a glass pot into a ceramic cup on a wooden cafe table, close-up shot.|A hand stirs coffee with a spoon in a ceramic cup on a wooden cafe table, close-up shot.
-# 06_lake_boat|A small wooden boat drifts across a calm lake beneath misty mountains, wide shot.|A small wooden boat drifts along a narrow river beneath misty mountains, wide shot.
-# 07_garden_butterfly|A butterfly flutters above lavender flowers in a sunlit garden, close-up shot.|A bee flutters above lavender flowers in a sunlit garden, close-up shot.
-# 08_market_walk|A woman walks past a fruit stall at an outdoor market in daylight, medium shot.|A woman picks up an apple at a fruit stall at an outdoor market in daylight, medium shot.
-# 09_park_fountain|Water splashes from a stone fountain in a quiet park lined with trees, fixed camera.|Water splashes from a stone fountain in a quiet courtyard lined with arches, fixed camera.
-# 10_river_ducks|Two ducks paddle across a calm river beneath an old stone bridge, wide shot.|Two ducks take flight from a calm river beneath an old stone bridge, wide shot.
-# 11_mountain_hiker|A hiker with a backpack walks along a rocky mountain trail under a clear sky, rear view.|A hiker with a backpack walks along a wooden suspension bridge under a clear sky, rear view.
-# 12_kitchen_chef|A chef slices a loaf of bread on a wooden cutting board in a bright kitchen, close-up shot.|A chef slices a tomato on a wooden cutting board in a bright kitchen, close-up shot.
-# 13_meadow_horse|A horse grazes in a grassy meadow with distant hills, side view.|A horse gallops through a grassy meadow with distant hills, side view.
-# 14_rainy_street|A person holding an umbrella walks along a rain-soaked city sidewalk at night, tracking shot.|A person holding an umbrella walks across a rain-soaked pedestrian bridge at night, tracking shot.
-# 15_forest_stream|A shallow stream flows over smooth rocks through a dense forest in soft morning light, fixed camera.|A shallow stream flows over smooth rocks through an open meadow in soft morning light, fixed camera.
-# 16_balloons|A balloon floats above a grassy field in a gentle breeze, low-angle shot.|A kite floats above a grassy field in a gentle breeze, low-angle shot.
-# 17_beach_waves|Gentle waves roll onto an empty sandy beach beneath a clear sky, wide shot.|Powerful waves crash onto an empty sandy beach beneath a clear sky, wide shot.
-# 18_street_musician|A musician plays a flute beside a brick wall on a quiet street, medium shot.|A musician plays a saxophone beside a brick wall on a quiet street, medium shot.
-# 19_snowy_cabin|Snow falls around a wooden cabin in a pine forest, fixed camera.|Snow falls around a camping tent in a pine forest, fixed camera.
-# 20_garden_watering|A person waters potted flowers with a watering can on a sunny balcony, medium shot.|A person trims potted flowers with pruning shears on a sunny balcony, medium shot.

@@ -20,7 +20,6 @@ HEIGHT=480
 WIDTH=832
 NUM_FRAMES=81
 FPS=16
-GUIDANCE_SCALE=5.0
 CLIP_MODEL="openai/clip-vit-large-patch14"
 # Paper Figure 10; initial thresholds, not calibrated for Wan video generation.
 SIMILARITY_TO_K='[[0.95,25],[0.90,20],[0.85,15],[0.75,10],[0.65,5]]'
@@ -47,7 +46,6 @@ for SEED in "${SEEDS[@]}"; do
     --width "$WIDTH" \
     --num-frames "$NUM_FRAMES" \
     --fps "$FPS" \
-    --guidance-scale "$GUIDANCE_SCALE" \
     --clip-model "$CLIP_MODEL" \
     --similarity-to-k "$SIMILARITY_TO_K" \
     --output-dir "$SEED_OUTPUT_DIR" \

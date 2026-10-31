@@ -21,7 +21,6 @@ def parse_args():
     parser.add_argument("--width", type=int, required=True)
     parser.add_argument("--num-frames", type=int, required=True)
     parser.add_argument("--fps", type=int, required=True)
-    parser.add_argument("--guidance-scale", type=float, required=True)
     parser.add_argument("--clip-model", required=True)
     parser.add_argument("--similarity-to-k", type=json.loads, required=True)
     parser.add_argument("--k-override", type=int)
@@ -122,7 +121,6 @@ def main(args):
         fps=args.fps,
         seed=args.seed,
         num_inference_steps=args.num_inference_steps,
-        guidance_scale=args.guidance_scale,
         progressive_mode="fullres",
         enable_cache_dit=False,
         enable_teacache=False,
