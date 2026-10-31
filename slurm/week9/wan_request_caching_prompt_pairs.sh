@@ -49,9 +49,11 @@ done <<'PROMPT_PAIRS'
 01_add_vase|Sunlight falls across a wooden table in a quiet dining room, fixed camera.|Sunlight falls across a wooden table with a ceramic vase in a quiet dining room, fixed camera.
 02_city_tram|A tram moves slowly through a cobblestone city square in morning light, wide shot.|A bus moves slowly through a cobblestone city square in morning light, wide shot.
 03_beach_dog|A golden retriever runs along a sandy beach beside gentle waves at sunset, side view.|A golden retriever digs a hole in a sandy beach beside gentle waves at sunset, side view.
-04_park_fountain|Water splashes from a stone fountain in a quiet park lined with trees, fixed camera.|Water splashes from a stone fountain in a quiet courtyard lined with arches, fixed camera.
-05_park_cyclist|A cyclist rides along a tree-lined park path in daylight, tracking shot.|A cyclist rides along a canal towpath in daylight, tracking shot.
+04_park_fountain|Water splashes from a stone fountain in a quiet park, fixed camera.|Water splashes from a stone fountain in a quiet courtyard, fixed camera.
+04_add_basket|A cyclist rides along a quiet city street in daylight, side tracking shot.|A cyclist with a wicker basket on the bicycle rides along a quiet city street in daylight, side tracking shot.
 06_snowy_cabin|Snow falls around a wooden cabin in a pine forest, fixed camera.|Snow falls around a camping tent in a pine forest, fixed camera.
 07_refine_car_colour|A silver car drives along a coastal road beneath a clear sky, side tracking shot.|A red car drives along a coastal road beneath a clear sky, side tracking shot.
-08_remove_umbrella|Gentle waves roll onto a sandy beach with a red beach umbrella at sunset, wide shot.|Gentle waves roll onto a sandy beach at sunset, wide shot.
+08_beach_party|A party on a sandy beach beside gentle waves, wide shot.|Gentle waves roll onto an empty sandy beach, wide shot.
+09_add_boat|Gentle ripples move across a calm empty lake beneath misty mountains, wide shot.|Gentle ripples move across a calm lake with a small wooden boat beneath misty mountains, wide shot.
+10_window_cat|A cat sits on a windowsill watching rain fall outside, medium shot.|A cat jumps down from a windowsill while rain falls outside, medium shot.
 PROMPT_PAIRS
