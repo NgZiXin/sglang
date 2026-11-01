@@ -30,25 +30,22 @@ RING_DEGREE=1
 
 setup_sglang_env
 
-# Temporary resume: prompts 1-26 already completed in this run.
-RUN_DIR="$OUTPUT_DIR/steps_22_shift_8_1056228"
-START_PROMPT=27
+RUN_DIR="$OUTPUT_DIR/steps_${NUM_INFERENCE_STEPS}_shift_${FLOW_SHIFT}_${SLURM_JOB_ID}"
 PROMPT_MANIFEST="$RUN_DIR/prompts.json"
 SUMMARY_CSV="$RUN_DIR/perf_summary.csv"
-if [[ ! -d "$RUN_DIR" || ! -f "$PROMPT_MANIFEST" ]]; then
-  echo "ERROR: Existing run directory or prompt manifest is missing: $RUN_DIR" >&2
-  exit 1
-fi
-mkdir -p "$RUN_DIR/videos" "$RUN_DIR/perf" "$RUN_DIR/logs"
+mkdir "$RUN_DIR"
+mkdir "$RUN_DIR/videos" "$RUN_DIR/perf" "$RUN_DIR/logs"
+# Save the prompt manifest to the run directory for reproducibility.
+cp "$REPO_DIR/slurm/week10/vbench_33_prompts_wan_chai_kv.json" "$PROMPT_MANIFEST"
 
-# Only generation is sliced; VBench below still uses the full saved manifest.
-PROMPTS=$(python3 - "$PROMPT_MANIFEST" "$START_PROMPT" <<'PY'
+# Bash reads the prompt rows directly from this inline JSON reader.
+PROMPTS=$(python3 - "$PROMPT_MANIFEST" <<'PY'
 import json
 import sys
 
 with open(sys.argv[1]) as file:
     manifest = json.load(file)
-for prompt in manifest["prompts"][int(sys.argv[2]) - 1:]:
+for prompt in manifest["prompts"]:
     print(prompt["prompt_id"], prompt["prompt_en"],
           manifest["seed"], manifest["sample_index"], sep="\t")
 PY
