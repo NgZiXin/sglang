@@ -4,14 +4,14 @@
 #SBATCH --gres=gpu:h100-96:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=192G
-#SBATCH --time=2:30:00
+#SBATCH --time=2:00:00
 #SBATCH --output=wan-request-caching-pairs-%j.out
 
 set -euo pipefail
 source "$HOME/cp4101/sglang/slurm/common.sh"
-export OUTPUT_DIR="$SCRATCH/sglang/outputs/week11/official/wan_request_caching_prompt_pairs/${SLURM_JOB_ID:-manual}"
+export OUTPUT_DIR="$SCRATCH/sglang/outputs/week11/official/k15/wan_request_caching_prompt_pairs/${SLURM_JOB_ID:-manual}"
 
-# One seed per pair, shared by A, cached B, and the full B baseline.
+# One seed per pair, shared by A and cached B; skip the full B baseline.
 MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
 SEED=42
 NUM_INFERENCE_STEPS=50
@@ -21,7 +21,7 @@ NUM_FRAMES=81
 FPS=16
 FLOW_SHIFT=8
 GUIDANCE_SCALE=6
-K_OVERRIDE=10
+K_OVERRIDE=15
 # Required by the Python CLI; similarity selection is currently disabled.
 CLIP_MODEL="openai/clip-vit-large-patch14"
 SIMILARITY_TO_K='[[0.95,25],[0.90,20],[0.85,15],[0.75,10],[0.65,5]]'
@@ -50,17 +50,25 @@ while IFS='|' read -r PAIR_ID PROMPT_A PROMPT_B; do
     --clip-model "$CLIP_MODEL" \
     --similarity-to-k "$SIMILARITY_TO_K" \
     --k-override "$K_OVERRIDE" \
+    --skip-b-full \
     --output-dir "$PAIR_OUTPUT_DIR" 2>&1 | tee "$PAIR_OUTPUT_DIR/experiment.log"
 done <<'PROMPT_PAIRS'
-22_forest_runner|A runner jogs along a shaded forest trail in morning light, tracking shot.|A runner jogs along a seaside promenade in morning light, tracking shot.
 23_city_pigeons|A flock of pigeons gathers on a cobblestone city square in daylight, wide shot.|A flock of pigeons gathers on a grassy hillside in daylight, wide shot.
-01_add_vase|Sunlight falls across a wooden table in a quiet dining room, fixed camera.|Sunlight falls across a wooden table with a ceramic vase in a quiet dining room, fixed camera.
-02_city_tram|A tram moves slowly through a cobblestone city square in morning light, wide shot.|A bus moves slowly through a cobblestone city square in morning light, wide shot.
-03_beach_dog|A golden retriever runs along a sandy beach beside gentle waves at sunset, side view.|A golden retriever digs a hole in a sandy beach beside gentle waves at sunset, side view.
-04_add_basket|A cyclist rides along a quiet city street in daylight, side tracking shot.|A cyclist with a wicker basket on the bicycle rides along a quiet city street in daylight, side tracking shot.
 06_snowy_cabin|Snow falls around a wooden cabin in a pine forest, fixed camera.|Snow falls around a camping tent in a pine forest, fixed camera.
+04_add_basket|A cyclist rides along a quiet city street in daylight, side tracking shot.|A cyclist with a wicker basket on the bicycle rides along a quiet city street in daylight, side tracking shot.
 07_refine_car_colour|A silver car drives along a coastal road beneath a clear sky, side tracking shot.|A red car drives along a coastal road beneath a clear sky, side tracking shot.
 08_beach_party|A party on a sandy beach beside gentle waves, wide shot.|Gentle waves roll onto an empty sandy beach, wide shot.
-09_add_boat|Gentle ripples move across a calm empty lake beneath misty mountains, wide shot.|Gentle ripples move across a calm lake with a small wooden boat beneath misty mountains, wide shot.
 10_window_cat|A cat sits on a windowsill watching rain fall outside, medium shot.|A cat jumps down from a windowsill while rain falls outside, medium shot.
 PROMPT_PAIRS
+
+# 22_forest_runner|A runner jogs along a shaded forest trail in morning light, tracking shot.|A runner jogs along a seaside promenade in morning light, tracking shot.
+# 23_city_pigeons|A flock of pigeons gathers on a cobblestone city square in daylight, wide shot.|A flock of pigeons gathers on a grassy hillside in daylight, wide shot.
+# 01_add_vase|Sunlight falls across a wooden table in a quiet dining room, fixed camera.|Sunlight falls across a wooden table with a ceramic vase in a quiet dining room, fixed camera.
+# 02_city_tram|A tram moves slowly through a cobblestone city square in morning light, wide shot.|A bus moves slowly through a cobblestone city square in morning light, wide shot.
+# 03_beach_dog|A golden retriever runs along a sandy beach beside gentle waves at sunset, side view.|A golden retriever digs a hole in a sandy beach beside gentle waves at sunset, side view.
+# 04_add_basket|A cyclist rides along a quiet city street in daylight, side tracking shot.|A cyclist with a wicker basket on the bicycle rides along a quiet city street in daylight, side tracking shot.
+# 06_snowy_cabin|Snow falls around a wooden cabin in a pine forest, fixed camera.|Snow falls around a camping tent in a pine forest, fixed camera.
+# 07_refine_car_colour|A silver car drives along a coastal road beneath a clear sky, side tracking shot.|A red car drives along a coastal road beneath a clear sky, side tracking shot.
+# 08_beach_party|A party on a sandy beach beside gentle waves, wide shot.|Gentle waves roll onto an empty sandy beach, wide shot.
+# 09_add_boat|Gentle ripples move across a calm empty lake beneath misty mountains, wide shot.|Gentle ripples move across a calm lake with a small wooden boat beneath misty mountains, wide shot.
+# 10_window_cat|A cat sits on a windowsill watching rain fall outside, medium shot.|A cat jumps down from a windowsill while rain falls outside, medium shot.

@@ -13,7 +13,7 @@ def parse_args():
     parser.add_argument(
         "--negative-prompt-b-append",
         default="",
-        help="Terms appended to the model's default negative prompt for both B runs",
+        help="Terms appended to the model's default negative prompt for B runs",
     )
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--num-inference-steps", type=int, required=True)
@@ -28,6 +28,11 @@ def parse_args():
     parser.add_argument("--clip-model", required=True)
     parser.add_argument("--similarity-to-k", type=json.loads, required=True)
     parser.add_argument("--k-override", type=int)
+    parser.add_argument(
+        "--skip-b-full",
+        action="store_true",
+        help="Skip the full prompt B baseline; generate only a_full and b_cached",
+    )
     parser.add_argument("--output-dir", type=Path, required=True)
     return parser.parse_args()
 
@@ -200,7 +205,7 @@ def main(args):
             )
         del source
 
-        # 2. Resume B at k, then generate the full B baseline for comparison.
+        # 2. Resume B at k, then optionally generate the full B baseline.
         run(
             "b_cached",
             args.prompt_b,
@@ -209,7 +214,8 @@ def main(args):
             **b_settings,
         )
         del checkpoint
-        run("b_full", args.prompt_b, **b_settings)
+        if not args.skip_b_full:
+            run("b_full", args.prompt_b, **b_settings)
     finally:
         generator.shutdown()
 
@@ -232,6 +238,7 @@ def main(args):
                 similarity_to_k=args.similarity_to_k,
                 selected_k=k,
                 manual_k=args.k_override,
+                skip_b_full=args.skip_b_full,
             ),
             indent=2,
         )
