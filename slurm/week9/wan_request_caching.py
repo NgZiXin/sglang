@@ -90,8 +90,7 @@ def main(args):
     )
 
     output_dir = args.output_dir
-    # Temporarily disable similarity-based selection and the CLI override.
-    # Restore this block to re-enable the previous behavior.
+    # Similarity-based selection is disabled; use a fixed k instead.
     # similarity = prompt_similarity(args.prompt_a, args.prompt_b, args.clip_model)
     # k = (
     #     choose_k(similarity, args.similarity_to_k)
@@ -104,7 +103,9 @@ def main(args):
     #     flush=True,
     # )
     similarity = None
-    k = 5
+    k = 5 if args.k_override is None else args.k_override
+    if not 0 <= k < args.num_inference_steps:
+        raise ValueError("k must satisfy 0 <= k < num_inference_steps")
     print(
         f"Fixed k={k}; B runs {args.num_inference_steps - k} steps",
         flush=True,

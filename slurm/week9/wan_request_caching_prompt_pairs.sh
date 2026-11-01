@@ -21,7 +21,8 @@ NUM_FRAMES=81
 FPS=16
 FLOW_SHIFT=8
 GUIDANCE_SCALE=6
-# Required by the Python CLI; the runner currently hardcodes k=5.
+K_OVERRIDE=10
+# Required by the Python CLI; similarity selection is currently disabled.
 CLIP_MODEL="openai/clip-vit-large-patch14"
 SIMILARITY_TO_K='[[0.95,25],[0.90,20],[0.85,15],[0.75,10],[0.65,5]]'
 
@@ -48,6 +49,7 @@ while IFS='|' read -r PAIR_ID PROMPT_A PROMPT_B; do
     --guidance-scale "$GUIDANCE_SCALE" \
     --clip-model "$CLIP_MODEL" \
     --similarity-to-k "$SIMILARITY_TO_K" \
+    --k-override "$K_OVERRIDE" \
     --output-dir "$PAIR_OUTPUT_DIR" 2>&1 | tee "$PAIR_OUTPUT_DIR/experiment.log"
 done <<'PROMPT_PAIRS'
 22_forest_runner|A runner jogs along a shaded forest trail in morning light, tracking shot.|A runner jogs along a seaside promenade in morning light, tracking shot.
