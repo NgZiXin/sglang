@@ -4,7 +4,7 @@
 #SBATCH --gpus=h100-96
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
-#SBATCH --time=9:30:00
+#SBATCH --time=10:00:00
 #SBATCH --output=wan-t2v-%j.out
 
 set -euo pipefail
@@ -12,7 +12,8 @@ set -euo pipefail
 source "$HOME/cp4101/sglang/slurm/common.sh"
 
 # Scheduler params
-FLOW_SHIFT=5 # Model default; sets the range before Beta sampling.
+FLOW_SHIFT=8
+GUIDANCE_SCALE=6
 
 OUTPUT_DIR="$SCRATCH/sglang/outputs/week11/vary_denoise_cache_dit"
 RUN_ID=1 # Required by perf summary csv
@@ -26,7 +27,6 @@ FPS=16
 NUM_GPUS=1
 ULYSSES_DEGREE=1
 RING_DEGREE=1
-WAN_TIMESTEP_SCHEDULE=0 # 0=flow shift, 1=early-fine, 2=Beta(0.6, 0.6), 3=Beta(0.6, 0.4).
 
 # Fixed cache settings
 export CACHE_DIT_LOG_LEVEL=DEBUG
@@ -34,7 +34,7 @@ export SGLANG_CACHE_DIT_FN=1
 export SGLANG_CACHE_DIT_BN=0
 export SGLANG_CACHE_DIT_WARMUP=4
 export SGLANG_CACHE_DIT_MC=-1
-export SGLANG_CACHE_DIT_RDT=0.06
+export SGLANG_CACHE_DIT_RDT=0.09
 export SGLANG_CACHE_DIT_TAYLORSEER=false
 export SGLANG_CACHE_DIT_TS_ORDER=1
 export SGLANG_CACHE_DIT_SCM_PRESET=none
@@ -85,13 +85,13 @@ printf 'num_inference_steps,prompt_id,seed,cache_hits,transformer_calls,cache_mi
   > "$CACHE_MISS_RUNS_CSV"
 
 for NUM_INFERENCE_STEPS in 10 20 30 40 50 60; do
-RUN_DIR="$OUTPUT_DIR/steps_${NUM_INFERENCE_STEPS}_schedule_${WAN_TIMESTEP_SCHEDULE}_shift_${FLOW_SHIFT}_${SLURM_JOB_ID}"
+RUN_DIR="$OUTPUT_DIR/steps_${NUM_INFERENCE_STEPS}_shift_${FLOW_SHIFT}_${SLURM_JOB_ID}"
 PROMPT_MANIFEST="$RUN_DIR/prompts.json"
 SUMMARY_CSV="$RUN_DIR/perf_summary.csv"
 mkdir "$RUN_DIR"
 mkdir "$RUN_DIR/videos" "$RUN_DIR/perf" "$RUN_DIR/logs"
 # Save the prompt manifest to the run directory for reproducibility.
-cp "$REPO_DIR/slurm/week11/vbench_33_prompts_wan_chai_kv.json" "$PROMPT_MANIFEST"
+cp "$REPO_DIR/slurm/week10/vbench_33_prompts_wan_chai_kv.json" "$PROMPT_MANIFEST"
 
 # Bash reads the prompt rows directly from this inline JSON reader.
 PROMPTS=$(python3 - "$PROMPT_MANIFEST" <<'PY'
@@ -127,7 +127,7 @@ while IFS=$'\t' read -r LABEL PROMPT SEED SAMPLE_INDEX; do
     --fps "$FPS" \
     --num-inference-steps "$NUM_INFERENCE_STEPS" \
     --flow-shift "$FLOW_SHIFT" \
-    --wan-timestep-schedule "$WAN_TIMESTEP_SCHEDULE" \
+    --guidance-scale "$GUIDANCE_SCALE" \
     --seed "$SEED" \
     --enable-cache-dit true \
     --save-output \
