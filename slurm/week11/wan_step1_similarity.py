@@ -1,4 +1,4 @@
-"""Compare first-step guided Wan flow predictions for the prompt pairs below.
+"""Compare first-step guided Wan flow predictions for supplied prompt pairs.
 
 Lower mean_l1 / relative_l1 means closer outputs; higher cosine_similarity
 means closer directions. These scores do not establish a safe reuse depth.
@@ -8,58 +8,46 @@ Uses SGLang's native model loader in one process; video decoding is skipped.
 import argparse
 import csv
 import math
+import sys
 from functools import wraps
 from pathlib import Path
 
 
-# Edit or add (pair_id, prompt_a, prompt_b) entries here.
-PROMPT_PAIRS = [
-    (
-        '01_add_vase',
-        'Sunlight falls across a wooden table in a quiet dining room, fixed camera.',
-        'Sunlight falls across a wooden table with a ceramic vase in a quiet dining room, fixed camera.',
-    ),
-    (
-        '02_city_tram',
-        'A tram moves slowly through a cobblestone city square in morning light, wide shot.',
-        'A bus moves slowly through a cobblestone city square in morning light, wide shot.',
-    ),
-    (
-        '03_beach_dog',
-        'A golden retriever runs along a sandy beach beside gentle waves at sunset, side view.',
-        'A golden retriever digs a hole in a sandy beach beside gentle waves at sunset, side view.',
-    ),
-    (
-        '04_park_fountain',
-        'Water splashes from a stone fountain in a quiet park lined with trees, fixed camera.',
-        'Water splashes from a stone fountain in a quiet courtyard lined with arches, fixed camera.',
-    ),
-    (
-        '05_park_cyclist',
-        'A cyclist rides along a tree-lined park path in daylight, tracking shot.',
-        'A cyclist rides along a canal towpath in daylight, tracking shot.',
-    ),
-    (
-        '06_snowy_cabin',
-        'Snow falls around a wooden cabin in a pine forest, fixed camera.',
-        'Snow falls around a camping tent in a pine forest, fixed camera.',
-    ),
-    (
-        '07_refine_car_colour',
-        'A silver car drives along a coastal road beneath a clear sky, side tracking shot.',
-        'A red car drives along a coastal road beneath a clear sky, side tracking shot.',
-    ),
-    (
-        '08_remove_umbrella',
-        'Gentle waves roll onto a sandy beach with a red beach umbrella at sunset, wide shot.',
-        'Gentle waves roll onto a sandy beach at sunset, wide shot.',
-    ),
-]
+def load_prompt_pairs(source):
+    """Read nonempty pair_id|prompt_a|prompt_b lines from a file or stdin."""
+    def read_pairs(lines):
+        pairs = []
+        seen_ids = set()
+        for line_number, line in enumerate(lines, start=1):
+            if not line.strip():
+                continue
+            fields = [field.strip() for field in line.rstrip("\r\n").split("|")]
+            if len(fields) != 3 or not all(fields):
+                raise ValueError(
+                    f"{source}:{line_number}: expected pair_id|prompt_a|prompt_b "
+                    "with three nonempty fields"
+                )
+            if fields[0] in seen_ids:
+                raise ValueError(f"{source}:{line_number}: duplicate pair_id {fields[0]!r}")
+            seen_ids.add(fields[0])
+            pairs.append(tuple(fields))
+        if not pairs:
+            raise ValueError(f"{source}: no prompt pairs supplied")
+        return pairs
+
+    if source == "-":
+        return read_pairs(sys.stdin)
+    with Path(source).open(encoding="utf-8-sig") as file:
+        return read_pairs(file)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-csv", type=Path, required=True)
+    parser.add_argument(
+        "--prompt-pairs", required=True, metavar="PATH",
+        help="UTF-8 file containing pair_id|prompt_a|prompt_b lines; use - for stdin",
+    )
     parser.add_argument("--model-path", default="Wan-AI/Wan2.1-T2V-1.3B-Diffusers")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--height", type=int, default=480)
@@ -75,7 +63,12 @@ def parse_args():
         "fingers, still picture, messy background, three legs, many people in the "
         "background, walking backwards"
     ))
-    return parser.parse_args()
+    args = parser.parse_args()
+    try:
+        args.prompt_pairs = load_prompt_pairs(args.prompt_pairs)
+    except (OSError, UnicodeError, ValueError) as error:
+        parser.error(str(error))
+    return args
 
 
 def first_prediction(worker, prompt, args):
@@ -152,7 +145,7 @@ def log_pairs(worker, args):
         writer = csv.writer(file)
         writer.writerow(["pair_id", "seed", "timestep", "mean_l1", "relative_l1",
                          "cosine_similarity", "prompt_a", "prompt_b"])
-        for pair_id, prompt_a, prompt_b in PROMPT_PAIRS:
+        for pair_id, prompt_a, prompt_b in args.prompt_pairs:
             print(f"\n{pair_id}\nA: {prompt_a}\nB: {prompt_b}", flush=True)
             a, timestep_a = first_prediction(worker, prompt_a, args)
             b, timestep_b = first_prediction(worker, prompt_b, args)
