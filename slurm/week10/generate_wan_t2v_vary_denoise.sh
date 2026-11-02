@@ -29,7 +29,7 @@ RING_DEGREE=1
 
 setup_sglang_env
 
-for NUM_INFERENCE_STEPS in 5 10 20 30 40 50 60; do
+for NUM_INFERENCE_STEPS in 50; do
 RUN_DIR="$OUTPUT_DIR/steps_${NUM_INFERENCE_STEPS}_shift_${FLOW_SHIFT}_${SLURM_JOB_ID}"
 PROMPT_MANIFEST="$RUN_DIR/prompts.json"
 SUMMARY_CSV="$RUN_DIR/perf_summary.csv"
