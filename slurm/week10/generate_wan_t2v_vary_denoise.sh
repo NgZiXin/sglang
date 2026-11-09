@@ -4,7 +4,7 @@
 #SBATCH --gpus=h100-96
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
-#SBATCH --time=10:00:00
+#SBATCH --time=2:30:00
 #SBATCH --output=wan-t2v-%j.out
 
 set -euo pipefail

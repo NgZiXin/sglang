@@ -25,7 +25,7 @@ GUIDANCE_SCALE=6
 setup_sglang_env
 
 PROMPT_MANIFEST="$OUTPUT_DIR/prompts.json"
-cp "$REPO_DIR/slurm/week12/experiment1/wan_mix_cache_11_prompts.json" "$PROMPT_MANIFEST"
+cp "$REPO_DIR/slurm/week10/vbench_33_prompts_wan_chai_kv.json" "$PROMPT_MANIFEST"
 
 # prompt_en is the target B prompt used by VBench; prompt_a supplies the cache.
 PROMPTS=$(python3 - "$PROMPT_MANIFEST" <<'PY'
@@ -73,11 +73,9 @@ while IFS=$'\t' read -r PAIR_ID PROMPT_A PROMPT_B SEED SAMPLE_INDEX; do
   cp "$GENERATED_VIDEO" "$RUN_DIR/videos/${PROMPT_B}-${SAMPLE_INDEX}.mp4"
 done <<< "$PROMPTS"
 
-# run_vbench_evaluation \
-#   --video-dir "$RUN_DIR/videos" \
-#   --manifest "$PROMPT_MANIFEST" \
-#   --output-file "$RUN_DIR/vbench_scores.json"
+run_vbench_evaluation \
+  --video-dir "$RUN_DIR/videos" \
+  --manifest "$PROMPT_MANIFEST" \
+  --output-file "$RUN_DIR/vbench_scores.json"
 
-# echo "Experiment completed. Outputs and VBench scores: $RUN_DIR"
-
-echo "Generation completed. Outputs: $RUN_DIR"
+echo "Experiment completed. Outputs and VBench scores: $RUN_DIR"
