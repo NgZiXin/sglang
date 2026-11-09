@@ -1,0 +1,161 @@
+{
+  "seed": 42,
+  "sample_index": 0,
+  "evaluation_scope": "quality",
+  "prompts": [
+    {
+      "prompt_id": "22_forest_runner",
+      "prompt_a": "A runner jogs along a shaded forest trail in morning light, tracking shot.",
+      "prompt_en": "A runner jogs along a seaside promenade in morning light, tracking shot.",
+      "dimension": [
+        "subject_consistency",
+        "background_consistency",
+        "temporal_flickering",
+        "motion_smoothness",
+        "dynamic_degree",
+        "aesthetic_quality",
+        "imaging_quality"
+      ]
+    },
+    {
+      "prompt_id": "23_city_pigeons",
+      "prompt_a": "A flock of pigeons gathers on a cobblestone city square in daylight, wide shot.",
+      "prompt_en": "A flock of pigeons gathers on a grassy hillside in daylight, wide shot.",
+      "dimension": [
+        "subject_consistency",
+        "background_consistency",
+        "temporal_flickering",
+        "motion_smoothness",
+        "dynamic_degree",
+        "aesthetic_quality",
+        "imaging_quality"
+      ]
+    },
+    {
+      "prompt_id": "01_add_vase",
+      "prompt_a": "Sunlight falls across a wooden table in a quiet dining room, fixed camera.",
+      "prompt_en": "Sunlight falls across a wooden table with a ceramic vase in a quiet dining room, fixed camera.",
+      "dimension": [
+        "subject_consistency",
+        "background_consistency",
+        "temporal_flickering",
+        "motion_smoothness",
+        "dynamic_degree",
+        "aesthetic_quality",
+        "imaging_quality"
+      ]
+    },
+    {
+      "prompt_id": "02_city_tram",
+      "prompt_a": "A tram moves slowly through a cobblestone city square in morning light, wide shot.",
+      "prompt_en": "A bus moves slowly through a cobblestone city square in morning light, wide shot.",
+      "dimension": [
+        "subject_consistency",
+        "background_consistency",
+        "temporal_flickering",
+        "motion_smoothness",
+        "dynamic_degree",
+        "aesthetic_quality",
+        "imaging_quality"
+      ]
+    },
+    {
+      "prompt_id": "03_beach_dog",
+      "prompt_a": "A golden retriever runs along a sandy beach beside gentle waves at sunset, side view.",
+      "prompt_en": "A golden retriever digs a hole in a sandy beach beside gentle waves at sunset, side view.",
+      "dimension": [
+        "subject_consistency",
+        "background_consistency",
+        "temporal_flickering",
+        "motion_smoothness",
+        "dynamic_degree",
+        "aesthetic_quality",
+        "imaging_quality"
+      ]
+    },
+    {
+      "prompt_id": "04_add_basket",
+      "prompt_a": "A cyclist rides along a quiet city street in daylight, side tracking shot.",
+      "prompt_en": "A cyclist with a wicker basket on the bicycle rides along a quiet city street in daylight, side tracking shot.",
+      "dimension": [
+        "subject_consistency",
+        "background_consistency",
+        "temporal_flickering",
+        "motion_smoothness",
+        "dynamic_degree",
+        "aesthetic_quality",
+        "imaging_quality"
+      ]
+    },
+    {
+      "prompt_id": "06_snowy_cabin",
+      "prompt_a": "Snow falls around a wooden cabin in a pine forest, fixed camera.",
+      "prompt_en": "Snow falls around a camping tent in a pine forest, fixed camera.",
+      "dimension": [
+        "subject_consistency",
+        "background_consistency",
+        "temporal_flickering",
+        "motion_smoothness",
+        "dynamic_degree",
+        "aesthetic_quality",
+        "imaging_quality"
+      ]
+    },
+    {
+      "prompt_id": "07_refine_car_colour",
+      "prompt_a": "A silver car drives along a coastal road beneath a clear sky, side tracking shot.",
+      "prompt_en": "A red car drives along a coastal road beneath a clear sky, side tracking shot.",
+      "dimension": [
+        "subject_consistency",
+        "background_consistency",
+        "temporal_flickering",
+        "motion_smoothness",
+        "dynamic_degree",
+        "aesthetic_quality",
+        "imaging_quality"
+      ]
+    },
+    {
+      "prompt_id": "08_beach_party",
+      "prompt_a": "A party on a sandy beach beside gentle waves, wide shot.",
+      "prompt_en": "Gentle waves roll onto an empty sandy beach, wide shot.",
+      "dimension": [
+        "subject_consistency",
+        "background_consistency",
+        "temporal_flickering",
+        "motion_smoothness",
+        "dynamic_degree",
+        "aesthetic_quality",
+        "imaging_quality"
+      ]
+    },
+    {
+      "prompt_id": "09_add_boat",
+      "prompt_a": "Gentle ripples move across a calm empty lake beneath misty mountains, wide shot.",
+      "prompt_en": "Gentle ripples move across a calm lake with a small wooden boat beneath misty mountains, wide shot.",
+      "dimension": [
+        "subject_consistency",
+        "background_consistency",
+        "temporal_flickering",
+        "motion_smoothness",
+        "dynamic_degree",
+        "aesthetic_quality",
+        "imaging_quality"
+      ]
+    },
+    {
+      "prompt_id": "10_window_cat",
+      "prompt_a": "A cat sits on a windowsill watching rain fall outside, medium shot.",
+      "prompt_en": "A cat jumps down from a windowsill while rain falls outside, medium shot.",
+      "dimension": [
+        "subject_consistency",
+        "background_consistency",
+        "temporal_flickering",
+        "motion_smoothness",
+        "dynamic_degree",
+        "aesthetic_quality",
+        "imaging_quality"
+      ]
+    }
+  ]
+}
