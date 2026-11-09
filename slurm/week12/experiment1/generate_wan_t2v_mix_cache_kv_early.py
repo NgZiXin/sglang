@@ -14,7 +14,7 @@ from sglang.multimodal_gen.runtime.pipelines_core.stages.timestep_preparation im
 )
 
 
-TARGET_INDICES = (6, 7)
+TARGET_INDICES = (6, 7, 8)
 TARGET_STEPS = [index + 1 for index in TARGET_INDICES]
 
 
@@ -157,7 +157,7 @@ def main(args):
         settings["negative_prompt"] = defaults.negative_prompt
         config = generator.server_args.pipeline_config
         source_steps, cache_mapping = build_cache_mapping(config, args.steps_a)
-        if source_steps != [10, 15]:
+        if source_steps != [10, 15, 20]:
             raise RuntimeError(f"Unexpected 50-step source indices: {source_steps}")
         print(f"K/V mapping (A -> B): {cache_mapping}", flush=True)
         (output_dir / "experiment.json").write_text(json.dumps(dict(
