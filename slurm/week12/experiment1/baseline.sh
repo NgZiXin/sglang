@@ -15,7 +15,7 @@ source "$HOME/cp4101/sglang/slurm/common.sh"
 FLOW_SHIFT=8
 GUIDANCE_SCALE=6
 
-OUTPUT_DIR="$SCRATCH/sglang/outputs/week11/official/baseline"
+OUTPUT_DIR="$SCRATCH/sglang/outputs/week12/official/baseline"
 RUN_ID=1 # Required by perf summary csv
 
 MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
@@ -37,7 +37,7 @@ SUMMARY_CSV="$RUN_DIR/perf_summary.csv"
 mkdir "$RUN_DIR"
 mkdir "$RUN_DIR/videos" "$RUN_DIR/perf" "$RUN_DIR/logs"
 # Save the prompt manifest to the run directory for reproducibility.
-cp "$REPO_DIR/slurm/vbench_11_prompts.json" "$PROMPT_MANIFEST"
+cp "$REPO_DIR/slurm/week12/experiment1/wan_mix_cache_11_prompts.json" "$PROMPT_MANIFEST"
 
 # Bash reads the prompt rows directly from this inline JSON reader.
 PROMPTS=$(python3 - "$PROMPT_MANIFEST" <<'PY'
