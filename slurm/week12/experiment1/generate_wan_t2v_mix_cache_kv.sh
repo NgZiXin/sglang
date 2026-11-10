@@ -25,7 +25,7 @@ GUIDANCE_SCALE=6
 setup_sglang_env
 
 PROMPT_MANIFEST="$OUTPUT_DIR/prompts.json"
-cp "$REPO_DIR/slurm/week12/experiment1/wan_mix_cache_11_prompts.json" "$PROMPT_MANIFEST"
+cp "$REPO_DIR/slurm/week10/vbench_33_prompts_wan_chai_kv.json" "$PROMPT_MANIFEST"
 
 # prompt_en is the target B prompt used by VBench; prompt_a supplies the cache.
 PROMPTS=$(python3 - "$PROMPT_MANIFEST" <<'PY'
