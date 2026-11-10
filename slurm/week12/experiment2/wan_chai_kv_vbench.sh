@@ -4,7 +4,7 @@
 #SBATCH --gres=gpu:h100-96:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
-#SBATCH --time=03:00:00
+#SBATCH --time=4:20:00
 #SBATCH --output=wan-chai-kv-vbench-%j.out
 
 set -euo pipefail
@@ -14,7 +14,7 @@ export OUTPUT_DIR="$SCRATCH/sglang/outputs/week12/official/wan_chai_kv_vbench/${
 # Fixed experiment settings. A records the cache; B reuses it.
 MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
 STEPS_A=50
-STEPS_B=20
+STEPS_B=30
 HEIGHT=480
 WIDTH=832
 NUM_FRAMES=81
