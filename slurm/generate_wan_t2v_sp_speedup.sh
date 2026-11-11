@@ -1,35 +1,33 @@
 #!/bin/bash
 #SBATCH --job-name=wan-t2v-sp-speed
 #SBATCH --partition=gpu
-#SBATCH --gres=gpu:h100-96:2
+#SBATCH --gres=gpu:h100-96:1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=192G
-#SBATCH --time=12:00:00
+#SBATCH --time=2:00:00
 #SBATCH --output=wan-t2v-sp-speed-%j.out
 
 set -euo pipefail
 
 source "$HOME/cp4101/sglang/slurm/common.sh"
 
-OUTPUT_DIR="$SCRATCH/sglang/outputs/sp_speedup"
+OUTPUT_DIR="$SCRATCH/sglang/outputs/week12/slides/14b/"
 RUN_PREFIX="wan_t2v_sp_speedup_${SLURM_JOB_ID:-manual}"
 SUMMARY_CSV="$OUTPUT_DIR/${RUN_PREFIX}_summary.csv"
 
 MODEL_PATH="Wan-AI/Wan2.1-T2V-14B-Diffusers"
-PROMPT="A red tram moves slowly through a sunlit city square"
+PROMPT="A golden retriever runs along a sandy beach beside gentle waves at sunset, side view."
 HEIGHT=480
 WIDTH=832
 NUM_FRAMES=81
 FPS=16
 NUM_INFERENCE_STEPS=50
 SEED=42
-REPEATS=4
+REPEATS=1
 
 # label num_gpus ulysses_degree ring_degree
 RUN_CONFIGS=(
   "baseline 1 1 1"
-  "ulysses_2 2 2 1"
-  "ring_2 2 1 2"
 )
 
 setup_sglang_env
