@@ -14,7 +14,7 @@ export OUTPUT_DIR="$SCRATCH/sglang/outputs/week12/official/wan_chai_kv_vbench/${
 # Fixed experiment settings. A records the cache; B reuses it.
 MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
 STEPS_A=50
-STEPS_B=30
+STEPS_B=10
 HEIGHT=480
 WIDTH=832
 NUM_FRAMES=81
