@@ -23,7 +23,7 @@ NUM_FRAMES=81
 FPS=16
 NUM_INFERENCE_STEPS=50
 SEED=42
-REPEATS=3
+REPEATS=4
 
 # label num_gpus ulysses_degree ring_degree
 RUN_CONFIGS=(
