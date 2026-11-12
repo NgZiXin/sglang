@@ -1,17 +1,17 @@
 #!/bin/bash
 #SBATCH --job-name=wan-t2v-sp-speed
 #SBATCH --partition=gpu
-#SBATCH --gres=gpu:h100-96:1
+#SBATCH --gres=gpu:h100-96:2
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=192G
-#SBATCH --time=2:00:00
+#SBATCH --time=2:45:00
 #SBATCH --output=wan-t2v-sp-speed-%j.out
 
 set -euo pipefail
 
 source "$HOME/cp4101/sglang/slurm/common.sh"
 
-OUTPUT_DIR="$SCRATCH/sglang/outputs/week12/slides/14b/"
+OUTPUT_DIR="$SCRATCH/sglang/outputs/week12/slides/cfg/"
 RUN_PREFIX="wan_t2v_sp_speedup_${SLURM_JOB_ID:-manual}"
 SUMMARY_CSV="$OUTPUT_DIR/${RUN_PREFIX}_summary.csv"
 
@@ -23,11 +23,11 @@ NUM_FRAMES=81
 FPS=16
 NUM_INFERENCE_STEPS=50
 SEED=42
-REPEATS=1
+REPEATS=3
 
 # label num_gpus ulysses_degree ring_degree
 RUN_CONFIGS=(
-  "baseline 1 1 1"
+  "baseline 2 1 1"
 )
 
 setup_sglang_env
@@ -49,7 +49,7 @@ for CONFIG in "${RUN_CONFIGS[@]}"; do
       --ulysses-degree "$ULYSSES_DEGREE" \
       --ring-degree "$RING_DEGREE" \
       --encoder-parallel replicate \
-      --cfg-parallel-size 1 \
+      --cfg-parallel-size 2 \
       --prompt "$PROMPT" \
       --height "$HEIGHT" \
       --width "$WIDTH" \
