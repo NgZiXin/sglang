@@ -11,11 +11,11 @@ set -euo pipefail
 
 source "$HOME/cp4101/sglang/slurm/common.sh"
 
-OUTPUT_DIR="$SCRATCH/sglang/outputs/week12/slides/cfg/"
+OUTPUT_DIR="$SCRATCH/sglang/outputs/week12/slides/lossless/"
 RUN_PREFIX="wan_t2v_sp_speedup_${SLURM_JOB_ID:-manual}"
 SUMMARY_CSV="$OUTPUT_DIR/${RUN_PREFIX}_summary.csv"
 
-MODEL_PATH="Wan-AI/Wan2.1-T2V-14B-Diffusers"
+MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
 PROMPT="A golden retriever runs along a sandy beach beside gentle waves at sunset, side view."
 HEIGHT=480
 WIDTH=832
@@ -25,31 +25,34 @@ NUM_INFERENCE_STEPS=50
 SEED=42
 REPEATS=4
 
-# label num_gpus ulysses_degree ring_degree
+# label num_gpus sp_degree ulysses_degree ring_degree cfg_parallel_size
 RUN_CONFIGS=(
-  "baseline 2 1 1"
+  "baseline 1 1 1 1 1"
+  "ulysses_2gpu 2 2 2 1 1"
+  "sequential_2gpu 2 1 1 1 1"
+  "cfg_parallel_2gpu 2 1 1 1 2"
 )
 
 setup_sglang_env
 
 for CONFIG in "${RUN_CONFIGS[@]}"; do
-  read -r LABEL NUM_GPUS ULYSSES_DEGREE RING_DEGREE <<< "$CONFIG"
+  read -r LABEL NUM_GPUS SP_DEGREE ULYSSES_DEGREE RING_DEGREE CFG_PARALLEL_SIZE <<< "$CONFIG"
 
   for RUN_ID in $(seq 1 "$REPEATS"); do
     PERF_PATH="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}_perf_run_${RUN_ID}.json"
     OUTPUT_PATH="$OUTPUT_DIR/${RUN_PREFIX}_${LABEL}_run_${RUN_ID}.mp4"
 
-    echo "Starting ${LABEL} run ${RUN_ID}/${REPEATS}: num_gpus=${NUM_GPUS}, ulysses_degree=${ULYSSES_DEGREE}, ring_degree=${RING_DEGREE}"
+    echo "Starting ${LABEL} run ${RUN_ID}/${REPEATS}: num_gpus=${NUM_GPUS}, sp_degree=${SP_DEGREE}, ulysses_degree=${ULYSSES_DEGREE}, ring_degree=${RING_DEGREE}, cfg_parallel_size=${CFG_PARALLEL_SIZE}"
 
     # --no-save-output
     sglang generate \
       --model-path "$MODEL_PATH" \
       --num-gpus "$NUM_GPUS" \
-      --sp-degree "$NUM_GPUS" \
+      --sp-degree "$SP_DEGREE" \
       --ulysses-degree "$ULYSSES_DEGREE" \
       --ring-degree "$RING_DEGREE" \
       --encoder-parallel replicate \
-      --cfg-parallel-size 2 \
+      --cfg-parallel-size "$CFG_PARALLEL_SIZE" \
       --prompt "$PROMPT" \
       --height "$HEIGHT" \
       --width "$WIDTH" \
