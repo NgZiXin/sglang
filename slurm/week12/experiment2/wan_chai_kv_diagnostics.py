@@ -1,4 +1,4 @@
-"""Measure cross-request Wan K/V replacement at B's denoising steps 2–4."""
+"""Measure cross-request Wan K/V replacement on selected denoising steps."""
 
 import csv
 import json
@@ -45,6 +45,7 @@ def measure(worker, args, source_steps, mapping, output_dir, *, control=False):
 
     output_dir.mkdir(parents=True, exist_ok=True)
     cache_id = uuid.uuid4().hex
+    source_prompt = args.prompt_b if control else args.prompt_a
     target_steps = [row["b_step"] - 1 for row in mapping]
     mapping_by_target = dict(zip(target_steps, mapping))
     attention = worker.pipeline.get_module("transformer").blocks[0].attn1
@@ -88,6 +89,8 @@ def measure(worker, args, source_steps, mapping, output_dir, *, control=False):
 
         row = dict(
             comparison="same_prompt" if control else "cross_prompt",
+            prompt_a=source_prompt,
+            prompt_b=args.prompt_b,
             trajectory="b_reuse" if mode == "reuse" else "b_clean",
             seed=args.seed,
             **matched,
@@ -142,7 +145,6 @@ def measure(worker, args, source_steps, mapping, output_dir, *, control=False):
     hook = attention.register_forward_hook(measure_attention)
     try:
         with patch.object(WanChaiKVCache, "apply", observe_apply):
-            source_prompt = args.prompt_b if control else args.prompt_a
             run("a_full", source_prompt, "record", args.steps_a)
             if not control:
                 run("b_chai_kv", args.prompt_b, "reuse", args.steps_b, save_video=True)
@@ -172,6 +174,7 @@ def main(args):
     output_dir = Path(args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
     same_prompt_control = os.environ.get("WAN_KV_SAME_PROMPT_CONTROL") == "1"
+    step2_only = os.environ.get("WAN_KV_STEP2_ONLY") == "1"
     server_args = ServerArgs.from_kwargs(
         model_path=args.model_path, backend="sglang", num_gpus=1, tp_size=1,
         sp_degree=1, ulysses_degree=1, ring_degree=1,
@@ -184,11 +187,15 @@ def main(args):
     try:
         worker = GPUWorker(local_rank=0, rank=0, master_port=server_args.master_port,
                            server_args=server_args)
-        source_steps, mapping = build_cache_mapping(
+        _, mapping = build_cache_mapping(
             server_args.pipeline_config, args.steps_a, args.steps_b,
         )
+        if step2_only:
+            mapping = [match for match in mapping if match["b_step"] == 2]
+        source_steps = [match["a_step"] - 1 for match in mapping]
         metadata = {**vars(args), "output_dir": str(output_dir),
                     "cache_mapping_policy": "nearest_sigma", "cache_mapping": mapping,
+                    "replacement_steps": [match["b_step"] for match in mapping],
                     "same_prompt_control": same_prompt_control}
         (output_dir / "experiment.json").write_text(
             json.dumps(metadata, indent=2), encoding="utf-8",

@@ -9,7 +9,21 @@
 
 set -euo pipefail
 source "$HOME/cp4101/sglang/slurm/common.sh"
-export OUTPUT_DIR="$SCRATCH/sglang/outputs/week12/experiment2/wan_chai_kv_diagnostics/${SLURM_JOB_ID:-manual}"
+case "${1:-all}" in
+  all)
+    EXPERIMENT_NAME="wan_chai_kv_diagnostics"
+    export WAN_KV_STEP2_ONLY=0
+    ;;
+  step2)
+    EXPERIMENT_NAME="wan_chai_kv_diagnostics_step2"
+    export WAN_KV_STEP2_ONLY=1
+    ;;
+  *)
+    echo "Usage: $0 [all|step2]" >&2
+    exit 2
+    ;;
+esac
+export OUTPUT_DIR="$SCRATCH/sglang/outputs/week12/experiment2/$EXPERIMENT_NAME/${SLURM_JOB_ID:-manual}"
 export WAN_KV_SAME_PROMPT_CONTROL="${WAN_KV_SAME_PROMPT_CONTROL:-0}"
 
 setup_sglang_env
