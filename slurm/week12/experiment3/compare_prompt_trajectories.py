@@ -37,6 +37,9 @@ def generate(worker, prompt, label, args):
         generate_request_id,
     )
     from sglang.multimodal_gen.runtime.entrypoints.utils import prepare_request
+    from sglang.multimodal_gen.runtime.pipelines_core.stages.progressive_resolution.denoising import (
+        ProgressiveDenoisingStageRouter,
+    )
 
     name = f"{label}_seed{args.seed}"
     perf_path = args.run_dir / "perf" / f"{name}.json"
@@ -65,6 +68,9 @@ def generate(worker, prompt, label, args):
     )
     request = prepare_request(worker.server_args, params)
     denoising = worker.pipeline.get_stage("denoising_stage")
+    if isinstance(denoising, ProgressiveDenoisingStageRouter):
+        # The router dispatches fullres requests to this stage.
+        denoising = denoising.standard_stage
     predict = denoising._predict_noise_with_cfg
     outputs = []
 
