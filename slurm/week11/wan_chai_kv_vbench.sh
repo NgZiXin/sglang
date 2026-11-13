@@ -9,7 +9,9 @@
 
 set -euo pipefail
 source "$HOME/cp4101/sglang/slurm/common.sh"
-export OUTPUT_DIR="$SCRATCH/sglang/outputs/week12/official/wan_chai_kv_vbench/${SLURM_JOB_ID:-manual}"
+# Temporary resume for job 1131489. Pairs 1–29 are already in its videos directory.
+export OUTPUT_DIR="$SCRATCH/sglang/outputs/week12/official/wan_chai_kv_vbench/1131489"
+RESUME_FROM_PAIR=30
 
 # Fixed experiment settings. A records the cache; B reuses it.
 MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
@@ -25,7 +27,6 @@ GUIDANCE_SCALE=6
 setup_sglang_env
 
 PROMPT_MANIFEST="$OUTPUT_DIR/prompts.json"
-cp "$REPO_DIR/slurm/week10/vbench_33_prompts_wan_chai_kv.json" "$PROMPT_MANIFEST"
 
 # prompt_en is the target B prompt used by VBench; prompt_a supplies the cache.
 PROMPTS=$(python3 - "$PROMPT_MANIFEST" <<'PY'
@@ -43,7 +44,18 @@ PY
 RUN_DIR="$OUTPUT_DIR/flow_shift_$FLOW_SHIFT"
 mkdir -p "$RUN_DIR/videos"
 
+PAIR_NUMBER=0
 while IFS=$'\t' read -r PAIR_ID PROMPT_A PROMPT_B SEED SAMPLE_INDEX; do
+  PAIR_NUMBER=$((PAIR_NUMBER + 1))
+  EVAL_VIDEO="$RUN_DIR/videos/${PROMPT_B}-${SAMPLE_INDEX}.mp4"
+  if (( PAIR_NUMBER < RESUME_FROM_PAIR )); then
+    if ! test -s "$EVAL_VIDEO"; then
+      echo "ERROR: Expected completed video for $PAIR_ID: $EVAL_VIDEO" >&2
+      exit 1
+    fi
+    continue
+  fi
+
   PAIR_OUTPUT_DIR="$RUN_DIR/${PAIR_ID}/seed_$SEED"
   mkdir -p "$PAIR_OUTPUT_DIR"
   printf '\nRunning pair %s with seed %s\nA: %s\nB: %s\nOutputs: %s\n' \
@@ -70,7 +82,7 @@ while IFS=$'\t' read -r PAIR_ID PROMPT_A PROMPT_B SEED SAMPLE_INDEX; do
     exit 1
   fi
   # Only cached B videos go into the evaluation directory, using VBench names.
-  cp "$GENERATED_VIDEO" "$RUN_DIR/videos/${PROMPT_B}-${SAMPLE_INDEX}.mp4"
+  cp "$GENERATED_VIDEO" "$EVAL_VIDEO"
 done <<< "$PROMPTS"
 
 run_vbench_evaluation \
