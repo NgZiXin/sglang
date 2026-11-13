@@ -4,7 +4,7 @@
 #SBATCH --gpus=h100-96
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
-#SBATCH --time=3:00:00
+#SBATCH --time=3:30:00
 #SBATCH --output=wan-t2v-baseline-%j.out
 
 set -euo pipefail
@@ -15,7 +15,7 @@ source "$HOME/cp4101/sglang/slurm/common.sh"
 FLOW_SHIFT=8
 GUIDANCE_SCALE=6
 
-OUTPUT_DIR="$SCRATCH/sglang/outputs/week12/official/baseline"
+OUTPUT_DIR="$SCRATCH/sglang/outputs/week12/official/baseline_vbench"
 RUN_ID=1 # Required by perf summary csv
 
 MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
@@ -37,7 +37,7 @@ SUMMARY_CSV="$RUN_DIR/perf_summary.csv"
 mkdir "$RUN_DIR"
 mkdir "$RUN_DIR/videos" "$RUN_DIR/perf" "$RUN_DIR/logs"
 # Save the prompt manifest to the run directory for reproducibility.
-cp "$REPO_DIR/slurm/week12/experiment1/wan_mix_cache_11_prompts.json" "$PROMPT_MANIFEST"
+cp "$REPO_DIR/slurm/week10/vbench_33_prompts_wan_chai_kv.json" "$PROMPT_MANIFEST"
 
 # Bash reads the prompt rows directly from this inline JSON reader.
 PROMPTS=$(python3 - "$PROMPT_MANIFEST" <<'PY'
@@ -87,27 +87,27 @@ while IFS=$'\t' read -r LABEL PROMPT SEED SAMPLE_INDEX; do
   append_perf_summary
 done <<< "$PROMPTS"
 
-# # Keep evaluation failures local to this batch. The subshell retains errexit
-# # so an environment/setup failure cannot fall through into the evaluator.
-# set +e
-# (
-#   set -e
-#   run_vbench_evaluation \
-#     --video-dir "$RUN_DIR/videos" \
-#     --manifest "$PROMPT_MANIFEST" \
-#     --output-file "$RUN_DIR/vbench_scores.json"
-# ) 2>&1 | tee "$RUN_DIR/logs/vbench.log"
-# EVALUATION_STATUS=("${PIPESTATUS[@]}")
-# set -e
+# Keep evaluation failures local to this batch. The subshell retains errexit
+# so an environment/setup failure cannot fall through into the evaluator.
+set +e
+(
+  set -e
+  run_vbench_evaluation \
+    --video-dir "$RUN_DIR/videos" \
+    --manifest "$PROMPT_MANIFEST" \
+    --output-file "$RUN_DIR/vbench_scores.json" \
+    --per-video-output-file "$RUN_DIR/vbench_per_video.json"
+) 2>&1 | tee "$RUN_DIR/logs/vbench.log"
+EVALUATION_STATUS=("${PIPESTATUS[@]}")
+set -e
 
-# if (( EVALUATION_STATUS[0] == 0 && EVALUATION_STATUS[1] == 0 )); then
-#   printf '{"status":"completed","evaluation_exit_code":0,"log_exit_code":0,"log_file":"logs/vbench.log"}\n' \
-#     > "$RUN_DIR/vbench_status.json"
-#   echo "Generation and evaluation completed: $RUN_DIR"
-# else
-#   printf '{"status":"failed","evaluation_exit_code":%d,"log_exit_code":%d,"log_file":"logs/vbench.log"}\n' \
-#     "${EVALUATION_STATUS[0]}" "${EVALUATION_STATUS[1]}" > "$RUN_DIR/vbench_status.json"
-#   echo "WARNING: Evaluation failed for ${NUM_INFERENCE_STEPS} steps; generated videos are saved. See $RUN_DIR/logs/vbench.log. Continuing the sweep." >&2
-# fi
-echo "Generation completed: $RUN_DIR"
+if (( EVALUATION_STATUS[0] == 0 && EVALUATION_STATUS[1] == 0 )); then
+  printf '{"status":"completed","evaluation_exit_code":0,"log_exit_code":0,"log_file":"logs/vbench.log"}\n' \
+    > "$RUN_DIR/vbench_status.json"
+  echo "Generation and evaluation completed: $RUN_DIR"
+else
+  printf '{"status":"failed","evaluation_exit_code":%d,"log_exit_code":%d,"log_file":"logs/vbench.log"}\n' \
+    "${EVALUATION_STATUS[0]}" "${EVALUATION_STATUS[1]}" > "$RUN_DIR/vbench_status.json"
+  echo "WARNING: Evaluation failed for ${NUM_INFERENCE_STEPS} steps; generated videos are saved. See $RUN_DIR/logs/vbench.log. Continuing the sweep." >&2
+fi
 done
