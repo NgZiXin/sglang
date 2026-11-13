@@ -4,7 +4,7 @@
 #SBATCH --gres=gpu:h100-96:2
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=192G
-#SBATCH --time=2:45:00
+#SBATCH --time=0:45:00
 #SBATCH --output=wan-t2v-sp-speed-%j.out
 
 set -euo pipefail
@@ -27,10 +27,9 @@ REPEATS=4
 
 # label num_gpus sp_degree ulysses_degree ring_degree cfg_parallel_size
 RUN_CONFIGS=(
-  "baseline 1 1 1 1 1"
+  "cfg_parallel_2gpu 2 1 1 1 2"
   "ulysses_2gpu 2 2 2 1 1"
   "sequential_2gpu 2 1 1 1 1"
-  "cfg_parallel_2gpu 2 1 1 1 2"
 )
 
 setup_sglang_env
