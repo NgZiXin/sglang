@@ -4,7 +4,7 @@
 #SBATCH --gres=gpu:h100-96:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
-#SBATCH --time=2:30:00
+#SBATCH --time=0:30:00
 #SBATCH --output=wan-request-caching-pairs-%j.out
 
 set -euo pipefail
@@ -53,21 +53,7 @@ while IFS='|' read -r PAIR_ID PROMPT_A PROMPT_B; do
     --skip-b-full \
     --output-dir "$PAIR_OUTPUT_DIR" 2>&1 | tee "$PAIR_OUTPUT_DIR/experiment.log"
 done <<'PROMPT_PAIRS'
-p01_subject_consistency|a horse walking across an open field|a horse galloping across an open field
-p02_subject_consistency|a dog digging happily|a dog running happily
-p03_scene|underwater rocky seabed|underwater coral reef
-p05_temporal_flickering|In a still frame, a speed limit sign|In a still frame, a stop sign
-p11_human_action|A person is playing harp|A person is playing piano
-p13_color|a blue car|a red car
-p14_color|a red bicycle|a blue bicycle
-p17_appearance_style|The bund Shanghai, watercolor painting|The bund Shanghai, Van Gogh style
-p18_appearance_style|A beautiful coastal beach in spring, waves lapping on sand, oil painting|A beautiful coastal beach in spring, waves lapping on sand, watercolor painting
-p22_overall_consistency|Two pandas discussing an academic paper beside a laptop.|Two pandas discussing an academic paper.
-p23_subject_consistency|a person holding a burger|a person eating a burger
-p24_scene|indoor botanical garden|botanical garden
-p29_color|a yellow car|a green car
-p31_appearance_style|a shark is swimming in the ocean, watercolor painting|a shark is swimming in the ocean, oil painting
-p32_temporal_style|a shark and a dolphin are swimming in the ocean, tilt up|a shark is swimming in the ocean, tilt up
+p10_multiple_objects|a bicycle|a bicycle and a car
 PROMPT_PAIRS
 
 # 23_city_pigeons|A flock of pigeons gathers on a cobblestone city square in daylight, wide shot.|A flock of pigeons gathers on a grassy hillside in daylight, wide shot.
