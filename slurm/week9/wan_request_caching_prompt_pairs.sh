@@ -9,7 +9,7 @@
 
 set -euo pipefail
 source "$HOME/cp4101/sglang/slurm/common.sh"
-export OUTPUT_DIR="$SCRATCH/sglang/outputs/week11/official/k15/wan_request_caching_prompt_pairs/${SLURM_JOB_ID:-manual}"
+export OUTPUT_DIR="$SCRATCH/sglang/outputs/week12/official/k5/wan_request_caching_prompt_pairs/${SLURM_JOB_ID:-manual}"
 
 # One seed per pair, shared by A and cached B; skip the full B baseline.
 MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
