@@ -158,7 +158,36 @@ def evaluate_videos(video_dir: Path, full_info: list, work_dir: Path):
 
         scores[dimension] = score
 
-    return scores
+    return scores, results
+
+
+def collect_video_results(full_info: list, results: dict):
+    """Join the raw VBench details to their manifest entries by video path."""
+    details_by_dimension = {
+        dimension: {
+            item["video_path"]: {
+                key: value for key, value in item.items() if key != "video_path"
+            }
+            for item in details
+        }
+        for dimension, (_, details) in results.items()
+        if dimension in SCORING_PARAMETERS
+    }
+    return [
+        {
+            "prompt_id": prompt.get("prompt_id"),
+            "prompt_a": prompt.get("prompt_a"),
+            "prompt_b": prompt["prompt_en"],
+            "video_file": Path(video).name,
+            # A null detail means the video was expected but VBench omitted it.
+            "dimension_results": {
+                dimension: details_by_dimension[dimension].get(video)
+                for dimension in prompt["dimension"]
+            },
+        }
+        for prompt in full_info
+        for video in prompt["video_list"]
+    ]
 
 
 def calculate_total_scores(scores: dict):
@@ -199,6 +228,11 @@ def main():
     parser.add_argument("--video-dir", type=Path, required=True)
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--output-file", type=Path, required=True)
+    parser.add_argument(
+        "--per-video-output-file",
+        type=Path,
+        help="Optional JSON file for raw VBench results by video and prompt pair.",
+    )
     args = parser.parse_args()
 
     manifest = json.loads(args.manifest.read_text())
@@ -208,7 +242,7 @@ def main():
 
     # VBench's input and raw result JSON files are deleted after evaluation
     with tempfile.TemporaryDirectory(prefix="vbench-") as temporary_dir:
-        scores = evaluate_videos(video_dir, full_info, Path(temporary_dir))
+        scores, results = evaluate_videos(video_dir, full_info, Path(temporary_dir))
 
     summary = {
         "seed": seed,
@@ -220,6 +254,14 @@ def main():
     args.output_file.parent.mkdir(parents=True, exist_ok=True)
     args.output_file.write_text(json.dumps(summary, indent=2, allow_nan=False) + "\n")
     print(f"Saved VBench scores to {args.output_file}")
+
+    if args.per_video_output_file:
+        per_video = {"seed": seed, "videos": collect_video_results(full_info, results)}
+        args.per_video_output_file.parent.mkdir(parents=True, exist_ok=True)
+        args.per_video_output_file.write_text(
+            json.dumps(per_video, indent=2, allow_nan=False) + "\n"
+        )
+        print(f"Saved per-video VBench results to {args.per_video_output_file}")
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@
 
 set -euo pipefail
 source "$HOME/cp4101/sglang/slurm/common.sh"
-export OUTPUT_DIR="$SCRATCH/sglang/outputs/week11/official/wan_chai_kv_vbench/${SLURM_JOB_ID:-manual}"
+export OUTPUT_DIR="$SCRATCH/sglang/outputs/week12/official/wan_chai_kv_vbench/${SLURM_JOB_ID:-manual}"
 
 # Fixed experiment settings. A records the cache; B reuses it.
 MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
@@ -76,6 +76,7 @@ done <<< "$PROMPTS"
 run_vbench_evaluation \
   --video-dir "$RUN_DIR/videos" \
   --manifest "$PROMPT_MANIFEST" \
-  --output-file "$RUN_DIR/vbench_scores.json"
+  --output-file "$RUN_DIR/vbench_scores.json" \
+  --per-video-output-file "$RUN_DIR/vbench_per_video.json"
 
 echo "Experiment completed. Outputs and VBench scores: $RUN_DIR"
