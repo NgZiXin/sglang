@@ -18,41 +18,36 @@ SOURCE_INDICES = (5,)
 TARGET_INDICES = (1,)
 TARGET_STEPS = [index + 1 for index in TARGET_INDICES]
 
-# Keep 999, then resume the official 50-step schedule at timestep 978.
+# Keep the first evaluation, then resume the SGLang 50-step schedule at step 6.
 SOURCE_EVALUATIONS = 50
-MIXED_EVALUATION_INDICES = (0, *range(5, SOURCE_EVALUATIONS))
-FLOW_SHIFT = 5.0
+MIXED_EVALUATION_INDICES = (0, *range(SOURCE_INDICES[0], SOURCE_EVALUATIONS))
+FLOW_SHIFT = 8.0
 
 MIXED_TIMESTEPS = [
-    999, 978, 973, 968, 963, 957,
-    952, 946, 940, 934, 927, 920, 913, 906, 898, 890,
-    882, 873, 863, 854, 843, 833, 821, 809, 796, 783,
-    768, 753, 737, 720, 701, 681, 660, 636, 611, 584,
-    555, 522, 487, 448, 405, 356, 302, 241, 172, 92,
+    999, 986, 983, 980, 976, 973,
+    969, 965, 962, 957, 953, 949, 944, 939, 934, 928,
+    923, 916, 910, 903, 896, 888, 880, 872, 862, 852,
+    842, 830, 818, 804, 790, 774, 756, 737, 716, 692,
+    666, 637, 603, 565, 521, 470, 410, 337, 249, 140,
 ]
 
 _original_forward = TimestepPreparationStage.forward
 
 
-def official_unshifted_sigmas(num_train_timesteps):
-    # Official Wan initializes the grid with shift=1 and a float32 sigma_max.
-    # SGLang applies the configured inference shift to these explicit sigmas
-    # and appends the terminal zero.
-    sigma_max = float(np.float32(1.0 - 1.0 / num_train_timesteps))
-    return np.linspace(sigma_max, 0.0, SOURCE_EVALUATIONS + 1)[:-1]
+def mixed_scheduler_sigmas(scheduler):
+    # Build the same pre-shift grid as the default 50-step SGLang scheduler.
+    sigmas = np.linspace(scheduler.sigma_max, scheduler.sigma_min, SOURCE_EVALUATIONS + 1)
+    return sigmas[list(MIXED_EVALUATION_INDICES)]
 
 
 def prepare_experiment_timesteps(self, batch, server_args):
     kv = getattr(batch, "wan_chai_kv", None)
-    if batch.is_warmup or not kv:
+    if batch.is_warmup or not kv or kv["mode"] != "reuse":
         return _original_forward(self, batch, server_args)
 
-    sigmas = official_unshifted_sigmas(self.scheduler.config.num_train_timesteps)
-    if kv["mode"] == "reuse":
-        sigmas = sigmas[list(MIXED_EVALUATION_INDICES)]
-    batch.sigmas = sigmas
+    batch.sigmas = mixed_scheduler_sigmas(self.scheduler)
     prepared = _original_forward(self, batch, server_args)
-    if kv["mode"] == "reuse" and prepared.timesteps.tolist() != MIXED_TIMESTEPS:
+    if prepared.timesteps.tolist() != MIXED_TIMESTEPS:
         raise RuntimeError(f"Unexpected B timesteps: {prepared.timesteps.tolist()}")
     return prepared
 
@@ -87,7 +82,7 @@ def parse_args():
     if args.steps_a != SOURCE_EVALUATIONS or args.steps_b != len(MIXED_EVALUATION_INDICES):
         parser.error("This experiment requires --steps-a 50 and --steps-b 46")
     if args.flow_shift != FLOW_SHIFT:
-        parser.error("--flow-shift must be 5 to reproduce the requested timesteps")
+        parser.error("--flow-shift must be 8 to reproduce the requested timesteps")
     if args.wan_timestep_schedule != 0:
         parser.error("The mixed schedule requires the default Wan scheduler mode")
     if args.guidance_scale <= 1:
@@ -103,13 +98,12 @@ def build_cache_mapping(config):
     scheduler = FlowUniPCMultistepScheduler(
         shift=config.flow_shift, timestep_schedule=config.wan_timestep_schedule,
     )
-    sigmas = official_unshifted_sigmas(scheduler.config.num_train_timesteps)
-    scheduler.set_timesteps(sigmas=sigmas, device="cpu")
+    scheduler.set_timesteps(SOURCE_EVALUATIONS, device="cpu")
     source_index = SOURCE_INDICES[0]
     source_sigma = scheduler.sigmas[source_index].item()
     source_timestep = scheduler.timesteps[source_index].item()
 
-    scheduler.set_timesteps(sigmas=sigmas[list(MIXED_EVALUATION_INDICES)], device="cpu")
+    scheduler.set_timesteps(sigmas=mixed_scheduler_sigmas(scheduler), device="cpu")
     target_index = TARGET_INDICES[0]
     target_sigma = scheduler.sigmas[target_index].item()
     target_timestep = scheduler.timesteps[target_index].item()
