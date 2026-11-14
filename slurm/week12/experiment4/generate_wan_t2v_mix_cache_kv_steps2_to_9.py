@@ -1,4 +1,4 @@
-"""Generate Wan B with a 39-step schedule and reuse first-block K/V at steps 2–4."""
+"""Generate Wan B with a 42-step schedule and reuse first-block K/V at steps 2–8."""
 
 import argparse
 import csv
@@ -17,14 +17,14 @@ from sglang.multimodal_gen.runtime.pipelines_core.stages.timestep_preparation im
 SOURCE_EVALUATIONS = 50
 FLOW_SHIFT = 8.0
 
-# Keep A steps 1, 5, and 10, then keep A steps 15–50.
-B_EVALUATION_INDICES = (0, 4, 9, *range(14, SOURCE_EVALUATIONS))
-TARGET_INDICES = tuple(range(1, 4))
+# Keep A steps 1–6 and 11, then keep A steps 16–50.
+B_EVALUATION_INDICES = (*range(6), 10, *range(15, SOURCE_EVALUATIONS))
+TARGET_INDICES = tuple(range(1, 8))
 TARGET_STEPS = [index + 1 for index in TARGET_INDICES]
 
 EXPECTED_TIMESTEPS = [
-    999, 989, 973,
-    953, 949, 944, 939, 934, 928,
+    999, 997, 994, 992, 989, 986,
+    969, 949, 944, 939, 934, 928,
     923, 916, 910, 903, 896, 888, 880, 872, 862, 852,
     842, 830, 818, 804, 790, 774, 756, 737, 716, 692,
     666, 637, 603, 565, 521, 470, 410, 337, 249, 140,
@@ -64,7 +64,7 @@ def parse_args():
     parser.add_argument("--steps-a", type=int, required=True,
                         help="Denoising steps for source request A (50)")
     parser.add_argument("--steps-b", type=int, required=True,
-                        help="Denoising steps for target request B (39)")
+                        help="Denoising steps for target request B (42)")
     parser.add_argument("--flow-shift", type=float, required=True,
                         help="Flow shift used by both A and B")
     parser.add_argument("--wan-timestep-schedule", type=int, choices=(0, 1, 2, 3), default=0,
@@ -78,7 +78,7 @@ def parse_args():
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     if args.steps_a != SOURCE_EVALUATIONS or args.steps_b != len(EXPECTED_TIMESTEPS):
-        parser.error("This experiment requires --steps-a 50 and --steps-b 39")
+        parser.error("This experiment requires --steps-a 50 and --steps-b 42")
     if args.flow_shift != FLOW_SHIFT:
         parser.error("--flow-shift must be 8 to reproduce the requested timesteps")
     if args.wan_timestep_schedule != 0:
