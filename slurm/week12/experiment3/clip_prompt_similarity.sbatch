@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --job-name=wan-clip-prompt-sim
 #SBATCH --partition=gpu
-#SBATCH --gpus=h100-96
+#SBATCH --gpus=h100-47
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=8G
-#SBATCH --time=00:10:00
+#SBATCH --time=00:20:00
 #SBATCH --output=wan-clip-prompt-sim-%j.out
 
 set -euo pipefail
@@ -13,23 +13,20 @@ OUTPUT_DIR="$SCRATCH/sglang/outputs/week12/experiment3/prompt_similarity"
 setup_sglang_env
 
 RESULT_CSV="$OUTPUT_DIR/clip_prompt_similarity_${SLURM_JOB_ID}.csv"
-python3 -u - "$RESULT_CSV" <<'PY'
+PROMPT_MANIFEST="$REPO_DIR/slurm/week10/vbench_33_prompts_wan_chai_kv.json"
+python3 -u - "$RESULT_CSV" "$PROMPT_MANIFEST" <<'PY'
 import csv
+import json
 import sys
 
 import torch
 from torch.nn.functional import cosine_similarity
 from transformers import AutoTokenizer, CLIPTextModelWithProjection
 
-pairs = """\
-23_city_pigeons|A flock of pigeons gathers on a cobblestone city square in daylight, wide shot.|A flock of pigeons gathers on a grassy hillside in daylight, wide shot.
-06_snowy_cabin|Snow falls around a wooden cabin in a pine forest, fixed camera.|Snow falls around a camping tent in a pine forest, fixed camera.
-04_add_basket|A cyclist rides along a quiet city street in daylight, side tracking shot.|A cyclist with a wicker basket on the bicycle rides along a quiet city street in daylight, side tracking shot.
-07_refine_car_colour|A silver car drives along a coastal road beneath a clear sky, side tracking shot.|A red car drives along a coastal road beneath a clear sky, side tracking shot.
-08_beach_party|A party on a sandy beach beside gentle waves, wide shot.|Gentle waves roll onto an empty sandy beach, wide shot.
-10_window_cat|A cat sits on a windowsill watching rain fall outside, medium shot.|A cat jumps down from a windowsill while rain falls outside, medium shot.
-"""
-rows = [line.split("|", 2) for line in pairs.splitlines()]
+with open(sys.argv[2], encoding="utf-8") as manifest_file:
+    manifest = json.load(manifest_file)
+
+rows = [(pair["prompt_id"], pair["prompt_a"], pair["prompt_en"]) for pair in manifest["prompts"]]
 prompts = [prompt for _, prompt_a, prompt_b in rows for prompt in (prompt_a, prompt_b)]
 
 checkpoint = "openai/clip-vit-large-patch14"
