@@ -34,7 +34,7 @@ PROMPT_MANIFEST="$RUN_DIR/prompts.json"
 SUMMARY_CSV="$RUN_DIR/perf_summary.csv"
 mkdir "$RUN_DIR"
 mkdir "$RUN_DIR/videos" "$RUN_DIR/perf" "$RUN_DIR/logs" "$RUN_DIR/kv"
-cp "$REPO_DIR/slurm/week12/experiment1/wan_mix_cache_11_prompts.json" "$PROMPT_MANIFEST"
+cp "$REPO_DIR/slurm/week10/vbench_33_prompts_wan_chai_kv.json" "$PROMPT_MANIFEST"
 
 python3 -u "$REPO_DIR/slurm/week12/experiment3/compare_prompt_trajectories_chai_kv.py" \
   --model-path "$MODEL_PATH" \
