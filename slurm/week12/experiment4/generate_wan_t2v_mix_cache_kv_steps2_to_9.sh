@@ -4,7 +4,7 @@
 #SBATCH --gres=gpu:h100-96:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
-#SBATCH --time=02:30:00
+#SBATCH --time=00u:30:00
 #SBATCH --output=wan-t2v-mix-cache-kv-steps2-to-9-%j.out
 
 set -euo pipefail
