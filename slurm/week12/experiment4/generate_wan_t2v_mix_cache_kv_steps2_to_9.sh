@@ -1,0 +1,75 @@
+#!/bin/bash
+#SBATCH --job-name=wan-t2v-mix-cache-kv-steps2-to-9
+#SBATCH --partition=gpu
+#SBATCH --gres=gpu:h100-96:1
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=96G
+#SBATCH --time=02:30:00
+#SBATCH --output=wan-t2v-mix-cache-kv-steps2-to-9-%j.out
+
+set -euo pipefail
+source "$HOME/cp4101/sglang/slurm/common.sh"
+export OUTPUT_DIR="$SCRATCH/sglang/outputs/week12/experiment4/mix_cache_kv_steps2_to_9/${SLURM_JOB_ID:-manual}"
+
+# Fixed experiment settings. A records the cache; B reuses it.
+MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
+STEPS_A=50
+STEPS_B=43
+HEIGHT=480
+WIDTH=832
+NUM_FRAMES=81
+FPS=16
+FLOW_SHIFT=8
+GUIDANCE_SCALE=6
+SEED=42
+
+setup_sglang_env
+
+PROMPT_MANIFEST="$OUTPUT_DIR/prompts.json"
+cp "$REPO_DIR/slurm/week12/experiment4/p10_multiple_objects.json" "$PROMPT_MANIFEST"
+
+# prompt_en is the target B prompt. prompt_a supplies the cache.
+PROMPTS=$(python3 - "$PROMPT_MANIFEST" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1]) as file:
+    prompt = json.load(file)
+print(prompt["prompt_id"], prompt["prompt_a"], prompt["prompt_en"], sep="\t")
+PY
+)
+
+RUN_DIR="$OUTPUT_DIR/flow_shift_$FLOW_SHIFT"
+# mkdir -p "$RUN_DIR/videos"  # VBench export
+
+while IFS=$'\t' read -r PAIR_ID PROMPT_A PROMPT_B; do
+  PAIR_OUTPUT_DIR="$RUN_DIR/${PAIR_ID}/seed_$SEED"
+  mkdir -p "$PAIR_OUTPUT_DIR"
+  printf '\nRunning pair %s with seed %s\nA: %s\nB: %s\nOutputs: %s\n' \
+    "$PAIR_ID" "$SEED" "$PROMPT_A" "$PROMPT_B" "$PAIR_OUTPUT_DIR"
+
+  python3 -u "$REPO_DIR/slurm/week12/experiment4/generate_wan_t2v_mix_cache_kv_steps2_to_9.py" \
+    --model-path "$MODEL_PATH" \
+    --prompt-a "$PROMPT_A" \
+    --prompt-b "$PROMPT_B" \
+    --seed "$SEED" \
+    --steps-a "$STEPS_A" \
+    --steps-b "$STEPS_B" \
+    --flow-shift "$FLOW_SHIFT" \
+    --guidance-scale "$GUIDANCE_SCALE" \
+    --height "$HEIGHT" \
+    --width "$WIDTH" \
+    --num-frames "$NUM_FRAMES" \
+    --fps "$FPS" \
+    --output-dir "$PAIR_OUTPUT_DIR" 2>&1 | tee "$PAIR_OUTPUT_DIR/experiment.log"
+
+  GENERATED_VIDEO="$PAIR_OUTPUT_DIR/b_chai_kv.mp4"
+  if ! test -s "$GENERATED_VIDEO"; then
+    echo "ERROR: Generated video is missing or empty: $GENERATED_VIDEO" >&2
+    exit 1
+  fi
+  # VBench export uses sample index 0.
+  # cp "$GENERATED_VIDEO" "$RUN_DIR/videos/${PROMPT_B}-0.mp4"
+done <<< "$PROMPTS"
+
+echo "Generation completed. Outputs: $RUN_DIR"

@@ -1,0 +1,14 @@
+{
+  "prompt_id": "p10_multiple_objects",
+  "group": "multiple_objects",
+  "prompt_en": "a bicycle and a car",
+  "dimension": [
+    "multiple_objects"
+  ],
+  "auxiliary_info": {
+    "multiple_objects": {
+      "object": "bicycle and car"
+    }
+  },
+  "prompt_a": "a bicycle"
+}
