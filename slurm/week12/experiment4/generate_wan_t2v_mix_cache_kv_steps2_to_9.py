@@ -1,4 +1,4 @@
-"""Generate Wan B with a 50-step schedule and reuse first-block K/V at steps 2–16."""
+"""Generate Wan B with a 43-step schedule and reuse first-block K/V at steps 2–8."""
 
 import argparse
 import csv
@@ -6,6 +6,8 @@ import json
 import time
 import uuid
 from pathlib import Path
+
+import numpy as np
 
 from sglang.multimodal_gen.runtime.pipelines_core.stages.timestep_preparation import (
     TimestepPreparationStage,
@@ -15,13 +17,14 @@ from sglang.multimodal_gen.runtime.pipelines_core.stages.timestep_preparation im
 SOURCE_EVALUATIONS = 50
 FLOW_SHIFT = 8.0
 
-TARGET_INDICES = tuple(range(1, 16))
-SOURCE_INDICES = TARGET_INDICES
+# Keep every second evaluation through A step 15, then keep A steps 16–50.
+B_EVALUATION_INDICES = (*range(0, 15, 2), *range(15, SOURCE_EVALUATIONS))
+TARGET_INDICES = tuple(range(1, 8))
 TARGET_STEPS = [index + 1 for index in TARGET_INDICES]
 
 EXPECTED_TIMESTEPS = [
-    999, 997, 994, 992, 989, 986, 983, 980, 976, 973,
-    969, 965, 962, 957, 953, 949, 944, 939, 934, 928,
+    999, 994, 989, 983, 976,
+    969, 962, 953, 949, 944, 939, 934, 928,
     923, 916, 910, 903, 896, 888, 880, 872, 862, 852,
     842, 830, 818, 804, 790, 774, 756, 737, 716, 692,
     666, 637, 603, 565, 521, 470, 410, 337, 249, 140,
@@ -30,11 +33,17 @@ EXPECTED_TIMESTEPS = [
 _original_forward = TimestepPreparationStage.forward
 
 
+def selected_scheduler_sigmas(scheduler):
+    grid = np.linspace(scheduler.sigma_max, scheduler.sigma_min, SOURCE_EVALUATIONS + 1)
+    return grid[list(B_EVALUATION_INDICES)]
+
+
 def prepare_experiment_timesteps(self, batch, server_args):
     kv = getattr(batch, "wan_chai_kv", None)
     if batch.is_warmup or not kv or kv["mode"] != "reuse":
         return _original_forward(self, batch, server_args)
 
+    batch.sigmas = selected_scheduler_sigmas(self.scheduler)
     prepared = _original_forward(self, batch, server_args)
     if prepared.timesteps.tolist() != EXPECTED_TIMESTEPS:
         raise RuntimeError(f"Unexpected B timesteps: {prepared.timesteps.tolist()}")
@@ -55,7 +64,7 @@ def parse_args():
     parser.add_argument("--steps-a", type=int, required=True,
                         help="Denoising steps for source request A (50)")
     parser.add_argument("--steps-b", type=int, required=True,
-                        help="Denoising steps for target request B (50)")
+                        help="Denoising steps for target request B (43)")
     parser.add_argument("--flow-shift", type=float, required=True,
                         help="Flow shift used by both A and B")
     parser.add_argument("--wan-timestep-schedule", type=int, choices=(0, 1, 2, 3), default=0,
@@ -69,7 +78,7 @@ def parse_args():
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     if args.steps_a != SOURCE_EVALUATIONS or args.steps_b != len(EXPECTED_TIMESTEPS):
-        parser.error("This experiment requires --steps-a 50 and --steps-b 50")
+        parser.error("This experiment requires --steps-a 50 and --steps-b 43")
     if args.flow_shift != FLOW_SHIFT:
         parser.error("--flow-shift must be 8 to reproduce the requested timesteps")
     if args.wan_timestep_schedule != 0:
@@ -88,19 +97,29 @@ def build_cache_mapping(config):
         shift=config.flow_shift, timestep_schedule=config.wan_timestep_schedule,
     )
     scheduler.set_timesteps(SOURCE_EVALUATIONS, device="cpu")
-    timesteps = scheduler.timesteps.tolist()
-    sigmas = scheduler.sigmas.tolist()
-    if timesteps != EXPECTED_TIMESTEPS or sigmas[-1] != 0.0:
-        raise RuntimeError("The scheduler did not reproduce the requested schedule")
+    sigmas_a = scheduler.sigmas[:-1].tolist()
+    timesteps_a = scheduler.timesteps.tolist()
 
-    # Both runs use the same scheduler and step count.
-    return [
-        dict(
-            a_step=index + 1, b_step=index + 1, timestep=timesteps[index],
-            a_sigma=sigmas[index], b_sigma=sigmas[index], sigma_difference=0.0,
-        )
-        for index in TARGET_INDICES
-    ]
+    scheduler.set_timesteps(sigmas=selected_scheduler_sigmas(scheduler), device="cpu")
+    sigmas_b = scheduler.sigmas.tolist()
+    timesteps_b = scheduler.timesteps.tolist()
+    if timesteps_b != EXPECTED_TIMESTEPS or sigmas_b[-1] != 0.0:
+        raise RuntimeError("The scheduler did not reproduce the requested B schedule")
+
+    mapping = []
+    for target_index in TARGET_INDICES:
+        target_sigma = sigmas_b[target_index]
+        source_index = B_EVALUATION_INDICES[target_index]
+        source_sigma = sigmas_a[source_index]
+        if source_sigma != target_sigma or timesteps_a[source_index] != timesteps_b[target_index]:
+            raise RuntimeError(f"Missing exact A K/V match for B timestep {timesteps_b[target_index]}")
+        mapping.append(dict(
+            a_step=source_index + 1, b_step=target_index + 1,
+            a_timestep=timesteps_a[source_index], timestep=timesteps_b[target_index],
+            a_sigma=source_sigma, b_sigma=target_sigma,
+            sigma_difference=0.0,
+        ))
+    return mapping
 
 
 def main(args):
@@ -137,8 +156,8 @@ def main(args):
         )
         settings["negative_prompt"] = defaults.negative_prompt
         config = generator.server_args.pipeline_config
-        source_steps = list(SOURCE_INDICES)
         cache_mapping = build_cache_mapping(config)
+        source_steps = [entry["a_step"] - 1 for entry in cache_mapping]
         print(f"K/V mapping (A -> B): {cache_mapping}", flush=True)
         (output_dir / "experiment.json").write_text(json.dumps(dict(
             model_path=args.model_path, prompt_a=args.prompt_a, prompt_b=args.prompt_b,
