@@ -1,4 +1,4 @@
-"""Generate Wan B with a 42-step schedule and reuse first-block K/V at steps 2–8."""
+"""Generate Wan B with a 42-step schedule and reuse first-block K/V at steps 2, 7, and 8."""
 
 import argparse
 import csv
@@ -19,8 +19,8 @@ FLOW_SHIFT = 8.0
 
 # Keep A steps 1–6 and 11, then keep A steps 16–50.
 B_EVALUATION_INDICES = (*range(6), 10, *range(15, SOURCE_EVALUATIONS))
-TARGET_INDICES = tuple(range(1, 8))
-TARGET_STEPS = [index + 1 for index in TARGET_INDICES]
+TARGET_STEPS = (2, 7, 8)
+TARGET_INDICES = tuple(step - 1 for step in TARGET_STEPS)
 
 EXPECTED_TIMESTEPS = [
     999, 997, 994, 992, 989, 986,
@@ -203,7 +203,7 @@ def main(args):
             }[mode]
             if (report["cache_id"] != cache_id or report["mode"] != mode
                     or report["source_steps"] != [i + 1 for i in source_steps]
-                    or report["target_steps"] != TARGET_STEPS
+                    or report["target_steps"] != list(TARGET_STEPS)
                     or report["num_steps"] != num_steps
                     or report["block0_calls"] != 2 * num_steps
                     or (report["captures"], report["replacements"]) != expected):
