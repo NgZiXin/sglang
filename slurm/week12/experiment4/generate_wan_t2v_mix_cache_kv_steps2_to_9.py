@@ -1,4 +1,4 @@
-"""Start Wan B from A’s step-1 latent and reuse K/V at original B steps 2–8."""
+"""Start Wan B from A’s step-1 latent and reuse K/V for the first 11 B steps."""
 
 import argparse
 import csv
@@ -21,15 +21,14 @@ from sglang.multimodal_gen.runtime.pipelines_core.stages.timestep_preparation im
 SOURCE_EVALUATIONS = 50
 FLOW_SHIFT = 8.0
 
-# Skip original B step 1. B starts at A step 2's noise level.
-B_EVALUATION_INDICES = (*range(1, 6), 10, *range(15, SOURCE_EVALUATIONS))
-ORIGINAL_B_TARGET_STEPS = tuple(range(2, 9))
-TARGET_STEPS = tuple(step - 1 for step in ORIGINAL_B_TARGET_STEPS)
+# Start at A step 2 and keep A steps 2–11 and 16–50.
+B_EVALUATION_INDICES = (*range(1, 11), *range(15, SOURCE_EVALUATIONS))
+TARGET_STEPS = tuple(range(1, 12))
 TARGET_INDICES = tuple(step - 1 for step in TARGET_STEPS)
 START_TIMESTEP = 997
 
 EXPECTED_TIMESTEPS = [
-    997, 994, 992, 989, 986,
+    997, 994, 992, 989, 986, 983, 980, 976, 973,
     969, 949, 944, 939, 934, 928,
     923, 916, 910, 903, 896, 888, 880, 872, 862, 852,
     842, 830, 818, 804, 790, 774, 756, 737, 716, 692,
@@ -95,7 +94,7 @@ def parse_args():
     parser.add_argument("--steps-a", type=int, required=True,
                         help="Denoising steps for source request A (50)")
     parser.add_argument("--steps-b", type=int, required=True,
-                        help="Denoising steps for target request B (41)")
+                        help="Denoising steps for target request B (45)")
     parser.add_argument("--flow-shift", type=float, required=True,
                         help="Flow shift used by both A and B")
     parser.add_argument("--wan-timestep-schedule", type=int, choices=(0, 1, 2, 3), default=0,
@@ -109,7 +108,7 @@ def parse_args():
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     if args.steps_a != SOURCE_EVALUATIONS or args.steps_b != len(EXPECTED_TIMESTEPS):
-        parser.error("This experiment requires --steps-a 50 and --steps-b 41")
+        parser.error("This experiment requires --steps-a 50 and --steps-b 45")
     if args.flow_shift != FLOW_SHIFT:
         parser.error("--flow-shift must be 8 to reproduce the requested timesteps")
     if args.wan_timestep_schedule != 0:
@@ -149,7 +148,6 @@ def build_cache_mapping(config):
             raise RuntimeError(f"Missing exact A K/V match for B timestep {timesteps_b[target_index]}")
         mapping.append(dict(
             a_step=source_index + 1, b_step=target_index + 1,
-            original_b_step=target_index + 2,
             a_timestep=timesteps_a[source_index], timestep=timesteps_b[target_index],
             a_sigma=source_sigma, b_sigma=target_sigma,
             sigma_difference=0.0,
@@ -199,7 +197,6 @@ def main(args):
             settings=settings, cache_id=cache_id, cache_steps=TARGET_STEPS,
             cache_mapping=cache_mapping, cache_mapping_policy="exact_sigma",
             b_timesteps=EXPECTED_TIMESTEPS, final_sigma=0.0,
-            original_b_cache_steps=ORIGINAL_B_TARGET_STEPS,
             b_initial_latent=dict(a_step=1, timestep=START_TIMESTEP),
             b_solver_history="fresh",
             steps_by_run={"a_full": args.steps_a,

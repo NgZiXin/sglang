@@ -1,20 +1,20 @@
 #!/bin/bash
-#SBATCH --job-name=wan-t2v-mix-cache-latent997-kv-steps2-to-8
+#SBATCH --job-name=wan-t2v-mix-cache-latent997-kv-first11
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:h100-96:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
 #SBATCH --time=00:30:00
-#SBATCH --output=wan-t2v-mix-cache-latent997-kv-steps2-to-8-%j.out
+#SBATCH --output=wan-t2v-mix-cache-latent997-kv-first11-%j.out
 
 set -euo pipefail
 source "$HOME/cp4101/sglang/slurm/common.sh"
-export OUTPUT_DIR="$SCRATCH/sglang/outputs/week12/experiment4/latent997_kv_steps2_to_8/${SLURM_JOB_ID:-manual}"
+export OUTPUT_DIR="$SCRATCH/sglang/outputs/week12/experiment4/latent997_kv_first11/${SLURM_JOB_ID:-manual}"
 
 # Fixed experiment settings. A records the cache; B reuses it.
 MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
 STEPS_A=50
-STEPS_B=41
+STEPS_B=45
 HEIGHT=480
 WIDTH=832
 NUM_FRAMES=81
@@ -33,9 +33,10 @@ PROMPTS=$(python3 - "$PROMPT_MANIFEST" <<'PY'
 import json
 import sys
 
-with open(sys.argv[1]) as file:
-    prompt = json.load(file)
-print(prompt["prompt_id"], prompt["prompt_a"], prompt["prompt_en"], sep="\t")
+with open(sys.argv[1], encoding="utf-8") as file:
+    prompts = json.load(file)
+for prompt in prompts:
+    print(prompt["prompt_id"], prompt["prompt_a"], prompt["prompt_en"], sep="\t")
 PY
 )
 

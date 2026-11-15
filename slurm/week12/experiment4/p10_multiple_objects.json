@@ -1,14 +1,30 @@
-{
-  "prompt_id": "p10_multiple_objects",
-  "group": "multiple_objects",
-  "prompt_en": "a bicycle and a car",
-  "dimension": [
-    "multiple_objects"
-  ],
-  "auxiliary_info": {
-    "multiple_objects": {
-      "object": "bicycle and car"
-    }
+[
+  {
+    "prompt_id": "p10_multiple_objects",
+    "group": "multiple_objects",
+    "prompt_en": "a bicycle and a car",
+    "dimension": [
+      "multiple_objects"
+    ],
+    "auxiliary_info": {
+      "multiple_objects": {
+        "object": "bicycle and car"
+      }
+    },
+    "prompt_a": "a bicycle"
   },
-  "prompt_a": "a bicycle"
-}
+  {
+    "prompt_id": "p13_color",
+    "group": "color",
+    "prompt_en": "a red car",
+    "dimension": [
+      "color"
+    ],
+    "auxiliary_info": {
+      "color": {
+        "color": "red"
+      }
+    },
+    "prompt_a": "a blue car"
+  }
+]
