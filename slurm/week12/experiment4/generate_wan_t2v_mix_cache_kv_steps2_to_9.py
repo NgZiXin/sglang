@@ -1,4 +1,4 @@
-"""Start Wan B from A’s step-1 latent and reuse K/V at original B steps 7 and 8."""
+"""Start Wan B from A’s step-1 latent and reuse K/V at original B steps 2–8."""
 
 import argparse
 import csv
@@ -23,7 +23,7 @@ FLOW_SHIFT = 8.0
 
 # Skip original B step 1. B starts at A step 2's noise level.
 B_EVALUATION_INDICES = (*range(1, 6), 10, *range(15, SOURCE_EVALUATIONS))
-ORIGINAL_B_TARGET_STEPS = (7, 8)
+ORIGINAL_B_TARGET_STEPS = tuple(range(2, 9))
 TARGET_STEPS = tuple(step - 1 for step in ORIGINAL_B_TARGET_STEPS)
 TARGET_INDICES = tuple(step - 1 for step in TARGET_STEPS)
 START_TIMESTEP = 997
