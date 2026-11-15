@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=wan-t2v-mix-cache-latent997-kv-first10
 #SBATCH --partition=gpu
-#SBATCH --gres=gpu:h100-47:1
+#SBATCH --gres=gpu:h100-96:1
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=47G
+#SBATCH --mem=96G
 #SBATCH --time=00:30:00
 #SBATCH --output=wan-t2v-mix-cache-latent997-kv-first10-%j.out
 
