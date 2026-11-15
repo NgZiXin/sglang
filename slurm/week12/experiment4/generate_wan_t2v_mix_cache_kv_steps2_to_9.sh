@@ -4,7 +4,7 @@
 #SBATCH --gres=gpu:h100-96:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
-#SBATCH --time=02:30:00
+#SBATCH --time=00:30:00
 #SBATCH --output=wan-t2v-mix-cache-kv-steps2-to-8-%j.out
 
 set -euo pipefail
@@ -21,29 +21,28 @@ NUM_FRAMES=81
 FPS=16
 FLOW_SHIFT=8
 GUIDANCE_SCALE=6
+SEED=42
 
 setup_sglang_env
 
 PROMPT_MANIFEST="$OUTPUT_DIR/prompts.json"
-cp "$REPO_DIR/slurm/week10/vbench_33_prompts_wan_chai_kv.json" "$PROMPT_MANIFEST"
+cp "$REPO_DIR/slurm/week12/experiment4/p10_multiple_objects.json" "$PROMPT_MANIFEST"
 
 # prompt_en is the target B prompt. prompt_a supplies the cache.
 PROMPTS=$(python3 - "$PROMPT_MANIFEST" <<'PY'
 import json
 import sys
 
-with open(sys.argv[1], encoding="utf-8") as file:
-    manifest = json.load(file)
-for prompt in manifest["prompts"]:
-    print(prompt["prompt_id"], prompt["prompt_a"], prompt["prompt_en"],
-          manifest["seed"], manifest["sample_index"], sep="\t")
+with open(sys.argv[1]) as file:
+    prompt = json.load(file)
+print(prompt["prompt_id"], prompt["prompt_a"], prompt["prompt_en"], sep="\t")
 PY
 )
 
 RUN_DIR="$OUTPUT_DIR/flow_shift_$FLOW_SHIFT"
 # mkdir -p "$RUN_DIR/videos"  # VBench export
 
-while IFS=$'\t' read -r PAIR_ID PROMPT_A PROMPT_B SEED SAMPLE_INDEX; do
+while IFS=$'\t' read -r PAIR_ID PROMPT_A PROMPT_B; do
   PAIR_OUTPUT_DIR="$RUN_DIR/${PAIR_ID}/seed_$SEED"
   mkdir -p "$PAIR_OUTPUT_DIR"
   printf '\nRunning pair %s with seed %s\nA: %s\nB: %s\nOutputs: %s\n' \
@@ -69,8 +68,8 @@ while IFS=$'\t' read -r PAIR_ID PROMPT_A PROMPT_B SEED SAMPLE_INDEX; do
     echo "ERROR: Generated video is missing or empty: $GENERATED_VIDEO" >&2
     exit 1
   fi
-  # VBench export uses the manifest sample index.
-  # cp "$GENERATED_VIDEO" "$RUN_DIR/videos/${PROMPT_B}-${SAMPLE_INDEX}.mp4"
+  # VBench export uses sample index 0.
+  # cp "$GENERATED_VIDEO" "$RUN_DIR/videos/${PROMPT_B}-0.mp4"
 done <<< "$PROMPTS"
 
 echo "Generation completed. Outputs: $RUN_DIR"
