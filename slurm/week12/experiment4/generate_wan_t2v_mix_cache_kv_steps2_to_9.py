@@ -1,4 +1,4 @@
-"""Start Wan B from A’s step-1 latent and reuse K/V for the first 10 B steps."""
+"""Use A’s first guided prediction to initialize Wan B at timestep 995."""
 
 import argparse
 import csv
@@ -21,47 +21,67 @@ from sglang.multimodal_gen.runtime.pipelines_core.stages.timestep_preparation im
 SOURCE_EVALUATIONS = 50
 FLOW_SHIFT = 8.0
 
-TARGET_STEPS = tuple(range(1, 11))
+TARGET_STEPS = tuple(range(1, 10))
 TARGET_INDICES = tuple(step - 1 for step in TARGET_STEPS)
-START_TIMESTEP = 997
+SOURCE_START_TIMESTEP = 999
+START_TIMESTEP = 995
 
 EXPECTED_TIMESTEPS = [
-    997, 995, 991, 986, 981, 975, 969, 963, 956, 949,
+    995, 991, 986, 981, 975, 969, 963, 956, 949,
     923, 888, 842, 774, 666, 470,
 ]
 
 _original_forward = TimestepPreparationStage.forward
 _original_latent_forward = LatentPreparationStage.forward
-_original_record_trajectory = DenoisingStage._record_trajectory
+_original_predict = DenoisingStage._predict_noise_with_cfg
 # A and B execute serially on the same worker, as required for K/V reuse.
-_start_latents = {}
+_first_predictions = {}
 
 
-def capture_start_latent(self, ctx, step, batch, server_args):
+def capture_first_prediction(self, **kwargs):
+    prediction = _original_predict(self, **kwargs)
+    batch = kwargs["batch"]
     kv = getattr(batch, "wan_chai_kv", None)
-    if not batch.is_warmup and kv and kv["mode"] == "record" and step.step_index == 0:
-        if ctx.scheduler.timesteps[1].item() != START_TIMESTEP:
-            raise RuntimeError("A step 1 must produce the latent for timestep 997")
-        _start_latents.clear()
-        _start_latents[kv["cache_id"]] = ctx.latents.detach().clone()
-    return _original_record_trajectory(self, ctx, step, batch, server_args)
+    if not batch.is_warmup and kv and kv["mode"] == "record" and kwargs["timestep_index"] == 0:
+        if batch.timesteps[0].item() != SOURCE_START_TIMESTEP:
+            raise RuntimeError("A must evaluate its first prediction at timestep 999")
+        latent = kwargs["latents"]
+        if prediction.shape != latent.shape:
+            raise RuntimeError("A's guided prediction must match its initial latent shape")
+        _first_predictions.clear()
+        _first_predictions[kv["cache_id"]] = (latent.detach().clone(), prediction.detach().clone())
+    return prediction
+
+
+def selected_scheduler_sigmas(scheduler):
+    # Use 30-step grid evaluations 2–9 and every fifth 50-step evaluation
+    # from 16 through 46. The scheduler applies flow shift to this grid.
+    grid_30 = np.linspace(scheduler.sigma_max, scheduler.sigma_min, 31)
+    grid_50 = np.linspace(scheduler.sigma_max, scheduler.sigma_min, SOURCE_EVALUATIONS + 1)
+    return np.concatenate((grid_30[1:9], grid_50[15:-1:5]))
 
 
 def prepare_start_latent(self, batch, server_args):
     kv = getattr(batch, "wan_chai_kv", None)
     if not batch.is_warmup and kv and kv["mode"] == "reuse":
-        batch.latents = _start_latents.pop(kv["cache_id"], None)
-        if batch.latents is None:
-            raise RuntimeError("Missing A step-1 latent for B")
+        captured = _first_predictions.pop(kv["cache_id"], None)
+        if captured is None:
+            raise RuntimeError("Missing A's initial latent and first guided prediction")
+        initial_latent, prediction = captured
+
+        # Use an isolated UniPC step so neither A's nor B's scheduler history is modified.
+        scheduler = type(self.scheduler).from_config(self.scheduler.config)
+        sigmas = np.concatenate(([self.scheduler.sigma_max], selected_scheduler_sigmas(self.scheduler)[:1]))
+        scheduler.set_timesteps(sigmas=sigmas, device=initial_latent.device)
+        if scheduler.timesteps.tolist() != [SOURCE_START_TIMESTEP, START_TIMESTEP]:
+            raise RuntimeError("Expected a handoff from timestep 999 to 995")
+        batch.latents = scheduler.step(
+            model_output=prediction,
+            timestep=scheduler.timesteps[0],
+            sample=initial_latent,
+            return_dict=False,
+        )[0]
     return _original_latent_forward(self, batch, server_args)
-
-
-def selected_scheduler_sigmas(scheduler):
-    # Keep A step 2's sigma for the handoff, then use 30-step grid
-    # evaluations 2–9 and every fifth 50-step evaluation from 16 through 46.
-    grid_30 = np.linspace(scheduler.sigma_max, scheduler.sigma_min, 31)
-    grid_50 = np.linspace(scheduler.sigma_max, scheduler.sigma_min, SOURCE_EVALUATIONS + 1)
-    return np.concatenate((grid_50[1:2], grid_30[1:9], grid_50[15:-1:5]))
 
 
 def prepare_experiment_timesteps(self, batch, server_args):
@@ -77,7 +97,7 @@ def prepare_experiment_timesteps(self, batch, server_args):
 
 
 # Spawned GPU workers import this module too, so they receive the same override.
-DenoisingStage._record_trajectory = capture_start_latent
+DenoisingStage._predict_noise_with_cfg = capture_first_prediction
 LatentPreparationStage.forward = prepare_start_latent
 TimestepPreparationStage.forward = prepare_experiment_timesteps
 
@@ -92,7 +112,7 @@ def parse_args():
     parser.add_argument("--steps-a", type=int, required=True,
                         help="Denoising steps for source request A (50)")
     parser.add_argument("--steps-b", type=int, required=True,
-                        help="Denoising steps for target request B (16)")
+                        help="Denoising steps for target request B (15)")
     parser.add_argument("--flow-shift", type=float, required=True,
                         help="Flow shift used by both A and B")
     parser.add_argument("--wan-timestep-schedule", type=int, choices=(0, 1, 2, 3), default=0,
@@ -106,7 +126,7 @@ def parse_args():
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     if args.steps_a != SOURCE_EVALUATIONS or args.steps_b != len(EXPECTED_TIMESTEPS):
-        parser.error("This experiment requires --steps-a 50 and --steps-b 16")
+        parser.error("This experiment requires --steps-a 50 and --steps-b 15")
     if args.flow_shift != FLOW_SHIFT:
         parser.error("--flow-shift must be 8 to reproduce the requested timesteps")
     if args.wan_timestep_schedule != 0:
@@ -133,9 +153,6 @@ def build_cache_mapping(config):
     timesteps_b = scheduler.timesteps.tolist()
     if timesteps_b != EXPECTED_TIMESTEPS or sigmas_b[-1] != 0.0:
         raise RuntimeError("The scheduler did not reproduce the requested B schedule")
-
-    if timesteps_b[0] != START_TIMESTEP or sigmas_b[0] != sigmas_a[1]:
-        raise RuntimeError("B must start at the sigma reached after A step 1")
 
     mapping = []
     for target_index in TARGET_INDICES:
@@ -195,7 +212,8 @@ def main(args):
             settings=settings, cache_id=cache_id, cache_steps=TARGET_STEPS,
             cache_mapping=cache_mapping, cache_mapping_policy="nearest_sigma",
             b_timesteps=EXPECTED_TIMESTEPS, final_sigma=0.0,
-            b_initial_latent=dict(a_step=1, timestep=START_TIMESTEP),
+            b_initial_latent=dict(a_prediction_step=1, source_timestep=SOURCE_START_TIMESTEP,
+                                  timestep=START_TIMESTEP, method="unipc_first_order"),
             b_solver_history="fresh",
             steps_by_run={"a_full": args.steps_a,
                           "b_chai_kv": args.steps_b},
