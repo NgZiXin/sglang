@@ -1,4 +1,4 @@
-"""Start Wan B from A’s step-1 latent and reuse K/V for the first 15 B steps."""
+"""Start Wan B from A’s step-1 latent and reuse K/V for the first 10 B steps."""
 
 import argparse
 import csv
@@ -21,16 +21,13 @@ from sglang.multimodal_gen.runtime.pipelines_core.stages.timestep_preparation im
 SOURCE_EVALUATIONS = 50
 FLOW_SHIFT = 8.0
 
-TARGET_STEPS = tuple(range(1, 16))
+TARGET_STEPS = tuple(range(1, 11))
 TARGET_INDICES = tuple(step - 1 for step in TARGET_STEPS)
 START_TIMESTEP = 997
 
 EXPECTED_TIMESTEPS = [
-    997, 994, 992, 989, 986, 983, 980, 976, 973,
-    969, 965, 962, 957, 953, 949, 944, 939, 934, 928,
-    923, 916, 910, 903, 896, 888, 880, 872, 862, 852,
-    842, 830, 818, 804, 790, 774, 756, 737, 716, 692,
-    666, 637, 603, 565, 521, 470, 410, 337, 249, 140,
+    997, 995, 991, 986, 981, 975, 969, 963, 956, 949,
+    923, 888, 842, 774, 666, 470,
 ]
 
 _original_forward = TimestepPreparationStage.forward
@@ -60,9 +57,11 @@ def prepare_start_latent(self, batch, server_args):
 
 
 def selected_scheduler_sigmas(scheduler):
-    # B starts at A's second evaluation and follows the rest of A's schedule.
-    grid = np.linspace(scheduler.sigma_max, scheduler.sigma_min, SOURCE_EVALUATIONS + 1)
-    return grid[1:-1]
+    # Keep A step 2's sigma for the handoff, then use 30-step grid
+    # evaluations 2–9 and every fifth 50-step evaluation from 16 through 46.
+    grid_30 = np.linspace(scheduler.sigma_max, scheduler.sigma_min, 31)
+    grid_50 = np.linspace(scheduler.sigma_max, scheduler.sigma_min, SOURCE_EVALUATIONS + 1)
+    return np.concatenate((grid_50[1:2], grid_30[1:9], grid_50[15:-1:5]))
 
 
 def prepare_experiment_timesteps(self, batch, server_args):
@@ -93,7 +92,7 @@ def parse_args():
     parser.add_argument("--steps-a", type=int, required=True,
                         help="Denoising steps for source request A (50)")
     parser.add_argument("--steps-b", type=int, required=True,
-                        help="Denoising steps for target request B (49)")
+                        help="Denoising steps for target request B (16)")
     parser.add_argument("--flow-shift", type=float, required=True,
                         help="Flow shift used by both A and B")
     parser.add_argument("--wan-timestep-schedule", type=int, choices=(0, 1, 2, 3), default=0,
@@ -107,7 +106,7 @@ def parse_args():
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     if args.steps_a != SOURCE_EVALUATIONS or args.steps_b != len(EXPECTED_TIMESTEPS):
-        parser.error("This experiment requires --steps-a 50 and --steps-b 49")
+        parser.error("This experiment requires --steps-a 50 and --steps-b 16")
     if args.flow_shift != FLOW_SHIFT:
         parser.error("--flow-shift must be 8 to reproduce the requested timesteps")
     if args.wan_timestep_schedule != 0:
@@ -141,10 +140,10 @@ def build_cache_mapping(config):
     mapping = []
     for target_index in TARGET_INDICES:
         target_sigma = sigmas_b[target_index]
-        source_index = target_index + 1
+        source_index = min(
+            range(len(sigmas_a)), key=lambda index: abs(sigmas_a[index] - target_sigma)
+        )
         source_sigma = sigmas_a[source_index]
-        if source_sigma != target_sigma or timesteps_a[source_index] != timesteps_b[target_index]:
-            raise RuntimeError(f"Missing exact A K/V match for B timestep {timesteps_b[target_index]}")
         mapping.append(dict(
             a_step=source_index + 1, b_step=target_index + 1,
             a_timestep=timesteps_a[source_index], timestep=timesteps_b[target_index],
@@ -194,7 +193,7 @@ def main(args):
         (output_dir / "experiment.json").write_text(json.dumps(dict(
             model_path=args.model_path, prompt_a=args.prompt_a, prompt_b=args.prompt_b,
             settings=settings, cache_id=cache_id, cache_steps=TARGET_STEPS,
-            cache_mapping=cache_mapping, cache_mapping_policy="exact_sigma",
+            cache_mapping=cache_mapping, cache_mapping_policy="nearest_sigma",
             b_timesteps=EXPECTED_TIMESTEPS, final_sigma=0.0,
             b_initial_latent=dict(a_step=1, timestep=START_TIMESTEP),
             b_solver_history="fresh",

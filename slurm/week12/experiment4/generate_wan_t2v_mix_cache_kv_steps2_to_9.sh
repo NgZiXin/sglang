@@ -1,20 +1,20 @@
 #!/bin/bash
-#SBATCH --job-name=wan-t2v-mix-cache-latent997-b49-kv-first15
+#SBATCH --job-name=wan-t2v-mix-cache-latent997-b16-kv-first10
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:h100-96:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
-#SBATCH --time=06:00:00
-#SBATCH --output=wan-t2v-mix-cache-latent997-b49-kv-first15-%j.out
+#SBATCH --time=03:00:00
+#SBATCH --output=wan-t2v-mix-cache-latent997-b16-kv-first10-%j.out
 
 set -euo pipefail
 source "$HOME/cp4101/sglang/slurm/common.sh"
-export OUTPUT_DIR="$SCRATCH/sglang/outputs/week12/experiment4/latent997_b49_kv_first15/${SLURM_JOB_ID:-manual}"
+export OUTPUT_DIR="$SCRATCH/sglang/outputs/week12/experiment4/latent997_b16_kv_first10/${SLURM_JOB_ID:-manual}"
 
 # Fixed experiment settings. A records the cache; B reuses it.
 MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
 STEPS_A=50
-STEPS_B=49
+STEPS_B=16
 HEIGHT=480
 WIDTH=832
 NUM_FRAMES=81
