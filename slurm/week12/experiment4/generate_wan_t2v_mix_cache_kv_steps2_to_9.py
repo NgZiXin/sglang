@@ -27,8 +27,10 @@ SOURCE_START_TIMESTEP = 999
 START_TIMESTEP = 995
 
 EXPECTED_TIMESTEPS = [
-    995, 991, 986, 981, 975, 969, 963, 956, 949,
-    923, 888, 842, 774, 666, 470,
+    995, 991, 986, 981, 975, 969, 963, 956, 949, 944, 939, 934, 928,
+    923, 916, 910, 903, 896, 888, 880, 872, 862, 852,
+    842, 830, 818, 804, 790, 774, 756, 737, 716, 692,
+    666, 637, 603, 565, 521, 470, 410, 337, 249, 140,
 ]
 
 _original_forward = TimestepPreparationStage.forward
@@ -54,11 +56,11 @@ def capture_first_prediction(self, **kwargs):
 
 
 def selected_scheduler_sigmas(scheduler):
-    # Use 30-step grid evaluations 2–9 and every fifth 50-step evaluation
-    # from 16 through 46. The scheduler applies flow shift to this grid.
+    # Use 30-step grid evaluations 2–9 and 50-step evaluations 16–50.
+    # The scheduler applies flow shift to this grid.
     grid_30 = np.linspace(scheduler.sigma_max, scheduler.sigma_min, 31)
     grid_50 = np.linspace(scheduler.sigma_max, scheduler.sigma_min, SOURCE_EVALUATIONS + 1)
-    return np.concatenate((grid_30[1:9], grid_50[15:-1:5]))
+    return np.concatenate((grid_30[1:9], grid_50[15:-1]))
 
 
 def prepare_start_latent(self, batch, server_args):
@@ -112,7 +114,7 @@ def parse_args():
     parser.add_argument("--steps-a", type=int, required=True,
                         help="Denoising steps for source request A (50)")
     parser.add_argument("--steps-b", type=int, required=True,
-                        help="Denoising steps for target request B (15)")
+                        help="Denoising steps for target request B (43)")
     parser.add_argument("--flow-shift", type=float, required=True,
                         help="Flow shift used by both A and B")
     parser.add_argument("--wan-timestep-schedule", type=int, choices=(0, 1, 2, 3), default=0,
@@ -126,7 +128,7 @@ def parse_args():
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     if args.steps_a != SOURCE_EVALUATIONS or args.steps_b != len(EXPECTED_TIMESTEPS):
-        parser.error("This experiment requires --steps-a 50 and --steps-b 15")
+        parser.error("This experiment requires --steps-a 50 and --steps-b 43")
     if args.flow_shift != FLOW_SHIFT:
         parser.error("--flow-shift must be 8 to reproduce the requested timesteps")
     if args.wan_timestep_schedule != 0:
