@@ -1,4 +1,4 @@
-"""Use A’s first guided prediction to initialize Wan B at timestep 995."""
+"""Use A’s first guided prediction to initialize Wan B at timestep 986."""
 
 import argparse
 import csv
@@ -21,17 +21,12 @@ from sglang.multimodal_gen.runtime.pipelines_core.stages.timestep_preparation im
 SOURCE_EVALUATIONS = 50
 FLOW_SHIFT = 8.0
 
-TARGET_STEPS = tuple(range(1, 10))
+TARGET_STEPS = tuple(range(1, 4))
 TARGET_INDICES = tuple(step - 1 for step in TARGET_STEPS)
 SOURCE_START_TIMESTEP = 999
-START_TIMESTEP = 995
+START_TIMESTEP = 986
 
-EXPECTED_TIMESTEPS = [
-    995, 991, 986, 981, 975, 969, 963, 956, 949, 944, 939, 934, 928,
-    923, 916, 910, 903, 896, 888, 880, 872, 862, 852,
-    842, 830, 818, 804, 790, 774, 756, 737, 716, 692,
-    666, 637, 603, 565, 521, 470, 410, 337, 249, 140,
-]
+EXPECTED_TIMESTEPS = [986, 969, 949, 923, 888, 842, 774, 666, 470]
 
 _original_forward = TimestepPreparationStage.forward
 _original_latent_forward = LatentPreparationStage.forward
@@ -56,11 +51,9 @@ def capture_first_prediction(self, **kwargs):
 
 
 def selected_scheduler_sigmas(scheduler):
-    # Use 30-step grid evaluations 2–9 and 50-step evaluations 16–50.
-    # The scheduler applies flow shift to this grid.
-    grid_30 = np.linspace(scheduler.sigma_max, scheduler.sigma_min, 31)
-    grid_50 = np.linspace(scheduler.sigma_max, scheduler.sigma_min, SOURCE_EVALUATIONS + 1)
-    return np.concatenate((grid_30[1:9], grid_50[15:-1]))
+    # Take every fifth evaluation from A's 50-step grid, starting at A step 6.
+    grid = np.linspace(scheduler.sigma_max, scheduler.sigma_min, SOURCE_EVALUATIONS + 1)
+    return grid[5:-1:5]
 
 
 def prepare_start_latent(self, batch, server_args):
@@ -76,7 +69,7 @@ def prepare_start_latent(self, batch, server_args):
         sigmas = np.concatenate(([self.scheduler.sigma_max], selected_scheduler_sigmas(self.scheduler)[:1]))
         scheduler.set_timesteps(sigmas=sigmas, device=initial_latent.device)
         if scheduler.timesteps.tolist() != [SOURCE_START_TIMESTEP, START_TIMESTEP]:
-            raise RuntimeError("Expected a handoff from timestep 999 to 995")
+            raise RuntimeError(f"Expected a handoff from {SOURCE_START_TIMESTEP} to {START_TIMESTEP}")
         batch.latents = scheduler.step(
             model_output=prediction,
             timestep=scheduler.timesteps[0],
@@ -114,7 +107,7 @@ def parse_args():
     parser.add_argument("--steps-a", type=int, required=True,
                         help="Denoising steps for source request A (50)")
     parser.add_argument("--steps-b", type=int, required=True,
-                        help="Denoising steps for target request B (43)")
+                        help="Denoising steps for target request B (9)")
     parser.add_argument("--flow-shift", type=float, required=True,
                         help="Flow shift used by both A and B")
     parser.add_argument("--wan-timestep-schedule", type=int, choices=(0, 1, 2, 3), default=0,
@@ -128,7 +121,7 @@ def parse_args():
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     if args.steps_a != SOURCE_EVALUATIONS or args.steps_b != len(EXPECTED_TIMESTEPS):
-        parser.error("This experiment requires --steps-a 50 and --steps-b 43")
+        parser.error("This experiment requires --steps-a 50 and --steps-b 9")
     if args.flow_shift != FLOW_SHIFT:
         parser.error("--flow-shift must be 8 to reproduce the requested timesteps")
     if args.wan_timestep_schedule != 0:
@@ -159,10 +152,11 @@ def build_cache_mapping(config):
     mapping = []
     for target_index in TARGET_INDICES:
         target_sigma = sigmas_b[target_index]
-        source_index = min(
-            range(len(sigmas_a)), key=lambda index: abs(sigmas_a[index] - target_sigma)
-        )
+        target_timestep = timesteps_b[target_index]
+        source_index = timesteps_a.index(target_timestep)
         source_sigma = sigmas_a[source_index]
+        if source_sigma != target_sigma:
+            raise RuntimeError(f"Missing exact A K/V sigma match for B timestep {target_timestep}")
         mapping.append(dict(
             a_step=source_index + 1, b_step=target_index + 1,
             a_timestep=timesteps_a[source_index], timestep=timesteps_b[target_index],
@@ -212,7 +206,7 @@ def main(args):
         (output_dir / "experiment.json").write_text(json.dumps(dict(
             model_path=args.model_path, prompt_a=args.prompt_a, prompt_b=args.prompt_b,
             settings=settings, cache_id=cache_id, cache_steps=TARGET_STEPS,
-            cache_mapping=cache_mapping, cache_mapping_policy="nearest_sigma",
+            cache_mapping=cache_mapping, cache_mapping_policy="exact_sigma",
             b_timesteps=EXPECTED_TIMESTEPS, final_sigma=0.0,
             b_initial_latent=dict(a_prediction_step=1, source_timestep=SOURCE_START_TIMESTEP,
                                   timestep=START_TIMESTEP, method="unipc_first_order"),
