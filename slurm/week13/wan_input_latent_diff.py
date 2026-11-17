@@ -45,7 +45,8 @@ def parse_args():
 
 def load_pairs(path, prompt_id):
     with path.open(encoding="utf-8-sig") as file:
-        pairs = json.load(file)["prompts"]
+        manifest = json.load(file)
+    pairs = manifest if isinstance(manifest, list) else manifest["prompts"]
     seen = set()
     for row in pairs:
         for key in ("prompt_id", "prompt_a", "prompt_en"):
