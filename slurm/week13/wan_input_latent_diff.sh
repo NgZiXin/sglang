@@ -4,7 +4,7 @@
 #SBATCH --gres=gpu:h100-96:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
-#SBATCH --time=6:00:00
+#SBATCH --time=3:00:00
 #SBATCH --output=wan-input-latent-diff-%j.out
 
 set -euo pipefail
