@@ -9,7 +9,7 @@
 
 set -euo pipefail
 source "$HOME/cp4101/sglang/slurm/common.sh"
-export OUTPUT_DIR="$SCRATCH/sglang/outputs/week5/b44_kv_steps2_to_10/${SLURM_JOB_ID:-manual}"
+export OUTPUT_DIR="$SCRATCH/sglang/outputs/week12/experiment5/b44_kv_steps2_to_10/${SLURM_JOB_ID:-manual}"
 
 # Fixed experiment settings. A records the cache; B reuses it.
 MODEL_PATH="Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
@@ -49,7 +49,7 @@ while IFS=$'\t' read -r PAIR_ID PROMPT_A PROMPT_B; do
   printf '\nRunning pair %s with seed %s\nA: %s\nB: %s\nOutputs: %s\n' \
     "$PAIR_ID" "$SEED" "$PROMPT_A" "$PROMPT_B" "$PAIR_OUTPUT_DIR"
 
-  python3 -u "$REPO_DIR/slurm/week5/generate_wan_t2v_mix_cache_kv_steps2_to_9.py" \
+  python3 -u "$REPO_DIR/slurm/week12/experiment5/generate_wan_t2v_mix_cache_kv_steps2_to_9.py" \
     --model-path "$MODEL_PATH" \
     --prompt-a "$PROMPT_A" \
     --prompt-b "$PROMPT_B" \
