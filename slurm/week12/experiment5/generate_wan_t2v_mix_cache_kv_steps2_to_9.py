@@ -1,4 +1,4 @@
-"""Generate Wan B from noise with K/V reuse at steps 2–10."""
+"""Generate Wan B from noise with K/V reuse at steps 2–7."""
 
 import argparse
 import csv
@@ -17,11 +17,11 @@ from sglang.multimodal_gen.runtime.pipelines_core.stages.timestep_preparation im
 SOURCE_EVALUATIONS = 50
 FLOW_SHIFT = 8.0
 
-TARGET_STEPS = tuple(range(2, 11))
+TARGET_STEPS = tuple(range(2, 8))
 TARGET_INDICES = tuple(step - 1 for step in TARGET_STEPS)
 
 EXPECTED_TIMESTEPS = [
-    999, 995, 991, 986, 981, 975, 969, 963, 956, 949, 944, 939, 934, 928,
+    999, 997, 994, 992, 989, 986, 949, 944, 939, 934, 928,
     923, 916, 910, 903, 896, 888, 880, 872, 862, 852,
     842, 830, 818, 804, 790, 774, 756, 737, 716, 692,
     666, 637, 603, 565, 521, 470, 410, 337, 249, 140,
@@ -31,10 +31,9 @@ _original_forward = TimestepPreparationStage.forward
 
 
 def selected_scheduler_sigmas(scheduler):
-    # Use A's initial sigma, 30-step evaluations 2–9, then A steps 16–50.
-    grid_30 = np.linspace(scheduler.sigma_max, scheduler.sigma_min, 31)
-    grid_50 = np.linspace(scheduler.sigma_max, scheduler.sigma_min, SOURCE_EVALUATIONS + 1)
-    return np.concatenate((grid_50[:1], grid_30[1:9], grid_50[15:-1]))
+    # Keep A's first six evaluations, then continue from A step 16 at 949.
+    grid = np.linspace(scheduler.sigma_max, scheduler.sigma_min, SOURCE_EVALUATIONS + 1)
+    return np.concatenate((grid[:6], grid[15:-1]))
 
 
 def prepare_experiment_timesteps(self, batch, server_args):
@@ -63,7 +62,7 @@ def parse_args():
     parser.add_argument("--steps-a", type=int, required=True,
                         help="Denoising steps for source request A (50)")
     parser.add_argument("--steps-b", type=int, required=True,
-                        help="Denoising steps for target request B (44)")
+                        help="Denoising steps for target request B (41)")
     parser.add_argument("--flow-shift", type=float, required=True,
                         help="Flow shift used by both A and B")
     parser.add_argument("--wan-timestep-schedule", type=int, choices=(0, 1, 2, 3), default=0,
@@ -77,7 +76,7 @@ def parse_args():
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     if args.steps_a != SOURCE_EVALUATIONS or args.steps_b != len(EXPECTED_TIMESTEPS):
-        parser.error("This experiment requires --steps-a 50 and --steps-b 44")
+        parser.error("This experiment requires --steps-a 50 and --steps-b 41")
     if args.flow_shift != FLOW_SHIFT:
         parser.error("--flow-shift must be 8 to reproduce the requested timesteps")
     if args.wan_timestep_schedule != 0:
@@ -109,10 +108,10 @@ def build_cache_mapping(config):
     for target_index in TARGET_INDICES:
         target_sigma = sigmas_b[target_index]
         target_timestep = timesteps_b[target_index]
-        source_index = min(
-            range(len(sigmas_a)), key=lambda index: abs(sigmas_a[index] - target_sigma)
-        )
+        source_index = timesteps_a.index(target_timestep)
         source_sigma = sigmas_a[source_index]
+        if source_sigma != target_sigma:
+            raise RuntimeError(f"Missing exact A K/V sigma match for B timestep {target_timestep}")
         mapping.append(dict(
             a_step=source_index + 1, b_step=target_index + 1,
             a_timestep=timesteps_a[source_index], timestep=target_timestep,
@@ -162,7 +161,7 @@ def main(args):
         (output_dir / "experiment.json").write_text(json.dumps(dict(
             model_path=args.model_path, prompt_a=args.prompt_a, prompt_b=args.prompt_b,
             settings=settings, cache_id=cache_id, cache_steps=TARGET_STEPS,
-            cache_mapping=cache_mapping, cache_mapping_policy="nearest_sigma",
+            cache_mapping=cache_mapping, cache_mapping_policy="exact_sigma",
             b_timesteps=EXPECTED_TIMESTEPS, final_sigma=0.0,
             b_initial_latent=dict(method="gaussian_noise", timestep=EXPECTED_TIMESTEPS[0]),
             b_solver_history="fresh",
