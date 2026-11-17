@@ -14,17 +14,26 @@
     "prompt_a": "a bicycle"
   },
   {
-    "prompt_id": "p13_color",
+    "prompt_id": "p11_human_action",
+    "group": "human_action",
+    "prompt_en": "A person is playing piano",
+    "dimension": [
+      "human_action"
+    ],
+    "prompt_a": "A person is playing harp"
+  },
+  {
+    "prompt_id": "p29_color",
     "group": "color",
-    "prompt_en": "a red car",
+    "prompt_en": "a green car",
     "dimension": [
       "color"
     ],
     "auxiliary_info": {
       "color": {
-        "color": "red"
+        "color": "green"
       }
     },
-    "prompt_a": "a blue car"
+    "prompt_a": "a yellow car"
   }
 ]
